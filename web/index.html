@@ -18,41 +18,106 @@
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
-
-  <!--
-    Uncomment the tag below to lay the app out underneath the parts of the
-    screen that the device obstructs, such as a display cutout, the rounded
-    corners of the screen, or a home indicator.
-
-    Without it, the browser keeps the app clear of them, and `SafeArea` and
-    `MediaQuery.paddingOf` report no padding. With it, the app covers the whole
-    screen, and it is up to the app to keep its own content out of the way,
-    which is what `SafeArea` is for.
-  -->
-  <!-- <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"> -->
+  <meta name="description" content="Retro starry-night Flappy Bird arcade game built with Flutter.">
+  <meta property="og:title" content="Flappy Bird — Flutter Arcade">
+  <meta property="og:description" content="Retro starry-night Flappy Bird arcade game built with Flutter.">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="flappy_birds_game">
+  <meta name="apple-mobile-web-app-title" content="Flappy Bird">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <title>flappy_birds_game</title>
+  <title>Flappy Bird — Flutter Arcade</title>
   <link rel="manifest" href="manifest.json">
 </head>
 <body>
-  <!--
-    You can customize the "flutter_bootstrap.js" script.
-    This is useful to provide a custom configuration to the Flutter loader
-    or to give the user feedback during the initialization process.
+  <script>
+    (function () {
+      var audioCtx = null;
+      function getCtx() {
+        if (!audioCtx) {
+          var Ctx = window.AudioContext || window.webkitAudioContext;
+          if (Ctx) audioCtx = new Ctx();
+        }
+        if (audioCtx && audioCtx.state === 'suspended') {
+          audioCtx.resume().catch(function () {});
+        }
+        return audioCtx;
+      }
 
-    For more details:
-    * https://docs.flutter.dev/platform-integration/web/initialization
-  -->
+      window.flappySfx = function (type) {
+        var ctx = getCtx();
+        if (!ctx) return;
+        var now = ctx.currentTime;
+        var osc = ctx.createOscillator();
+        var gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        if (type === 'flap') {
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(340, now);
+          osc.frequency.exponentialRampToValueAtTime(580, now + 0.08);
+          gain.gain.setValueAtTime(0.12, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+          osc.start(now);
+          osc.stop(now + 0.09);
+        } else if (type === 'score') {
+          osc.type = 'square';
+          osc.frequency.setValueAtTime(660, now);
+          osc.frequency.setValueAtTime(990, now + 0.06);
+          gain.gain.setValueAtTime(0.08, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.19);
+          osc.start(now);
+          osc.stop(now + 0.19);
+        } else if (type === 'hit') {
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(170, now);
+          osc.frequency.exponentialRampToValueAtTime(48, now + 0.16);
+          gain.gain.setValueAtTime(0.16, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.17);
+          osc.start(now);
+          osc.stop(now + 0.17);
+        } else if (type === 'die') {
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(320, now + 0.05);
+          osc.frequency.exponentialRampToValueAtTime(110, now + 0.28);
+          gain.gain.setValueAtTime(0.1, now + 0.05);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.29);
+          osc.start(now + 0.05);
+          osc.stop(now + 0.29);
+        } else if (type === 'swoosh') {
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(240, now);
+          osc.frequency.exponentialRampToValueAtTime(420, now + 0.07);
+          gain.gain.setValueAtTime(0.06, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+          osc.start(now);
+          osc.stop(now + 0.08);
+        }
+      };
+
+      window.flappyGetBestScore = function () {
+        try {
+          var v = window.localStorage.getItem('flappy_best_score');
+          return v ? parseInt(v, 10) || 0 : 0;
+        } catch (e) {
+          return 0;
+        }
+      };
+
+      window.flappySetBestScore = function (score) {
+        try {
+          window.localStorage.setItem('flappy_best_score', String(score));
+        } catch (e) {}
+      };
+    })();
+  </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

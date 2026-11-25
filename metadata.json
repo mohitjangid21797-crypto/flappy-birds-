@@ -1,0 +1,5 @@
+{
+  "name": "Flappy Birds Game",
+  "description": "React rewrite of the flappy_birds_game Flutter application preserving its Material counter interface and state logic.",
+  "requestFramePermissions": []
+}

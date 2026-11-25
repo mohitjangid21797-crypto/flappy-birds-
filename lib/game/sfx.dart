@@ -1,0 +1,40 @@
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
+
+import 'sfx_stub.dart' if (dart.library.js_interop) 'sfx_web.dart';
+
+enum GameSfx {
+  flap,
+  score,
+  hit,
+  die,
+  swoosh,
+}
+
+class SoundController {
+  bool muted = false;
+
+  void play(GameSfx sfx) {
+    if (muted) return;
+    if (kIsWeb) {
+      playWebSfx(sfx.name);
+      return;
+    }
+    switch (sfx) {
+      case GameSfx.flap:
+        HapticFeedback.lightImpact();
+      case GameSfx.score:
+        SystemSound.play(SystemSoundType.click);
+      case GameSfx.hit:
+        HapticFeedback.heavyImpact();
+      case GameSfx.die:
+        HapticFeedback.mediumImpact();
+      case GameSfx.swoosh:
+        HapticFeedback.selectionClick();
+    }
+  }
+
+  int loadBestScore() => readWebBestScore() ?? 0;
+
+  void saveBestScore(int score) => writeWebBestScore(score);
+}
