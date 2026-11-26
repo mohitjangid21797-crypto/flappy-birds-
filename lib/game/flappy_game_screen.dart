@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
+import 'daily_challenge.dart';
 import 'game_config.dart';
 import 'game_state.dart';
 import 'pixel_sprites.dart';
@@ -19,6 +21,7 @@ class FlappyGameScreen extends StatefulWidget {
 class _FlappyGameScreenState extends State<FlappyGameScreen>
     with SingleTickerProviderStateMixin {
   late final Ticker _ticker;
+  Timer? _countdownTimer;
   final FocusNode _focusNode = FocusNode();
   final SoundController _sfx = SoundController();
   final math.Random _rng = math.Random();
@@ -28,93 +31,161 @@ class _FlappyGameScreenState extends State<FlappyGameScreen>
   double _worldScroll = 0.0;
 
   GamePhase _phase = GamePhase.ready;
-  DifficultyMode _difficulty = DifficultyMode.classic;
+
+  GameMode? _selectedMode;
+  GameMode get _mode => _selectedMode ?? GameMode.heartRun;
+  set _mode(GameMode value) => _selectedMode = value;
+
+  BirdSkin? _selectedSkin;
+  BirdSkin get _birdSkin => _selectedSkin ?? BirdSkin.skyCap;
+  set _birdSkin(BirdSkin value) => _selectedSkin = value;
 
   Size _viewport = const Size(800, 600);
   double _birdY = 240.0;
   double _birdVelocity = 0.0;
   double _birdAngle = 0.0;
-  int _wingFrame = 1;
-  double _wingTimer = 0.0;
+
+  double? _wingPhaseVal;
+  double get _wingPhase => _wingPhaseVal ?? 0.0;
+  set _wingPhase(double value) => _wingPhaseVal = value;
+
+  double? _flapSquashVal;
+  double get _flapSquash => _flapSquashVal ?? 0.0;
+  set _flapSquash(double value) => _flapSquashVal = value;
+
+  double? _hatBounceVal;
+  double get _hatBounce => _hatBounceVal ?? 0.0;
+  set _hatBounce(double value) => _hatBounceVal = value;
+
+  double? _scorePopVal;
+  double get _scorePop => _scorePopVal ?? 0.0;
+  set _scorePop(double value) => _scorePopVal = value;
 
   int _score = 0;
   int _bestScore = 0;
-  bool _isNewBest = false;
-  double _gameOverCooldown = 0.0;
 
+  int? _heartsRemainingVal;
+  int get _heartsRemaining => _heartsRemainingVal ?? 1;
+  set _heartsRemaining(int value) => _heartsRemainingVal = value;
+
+  int? _heartsCollectedVal;
+  int get _heartsCollected => _heartsCollectedVal ?? 0;
+  set _heartsCollected(int value) => _heartsCollectedVal = value;
+
+  int? _pipesSpawnedVal;
+  int get _pipesSpawnedCount => _pipesSpawnedVal ?? 0;
+  set _pipesSpawnedCount(int value) => _pipesSpawnedVal = value;
+
+  bool _isNewBest = false;
+
+  bool? _isNewDailyBestVal;
+  bool get _isNewDailyBest => _isNewDailyBestVal ?? false;
+  set _isNewDailyBest(bool value) => _isNewDailyBestVal = value;
+
+  bool? _showLeaderboardVal;
+  bool get _showLeaderboard => _showLeaderboardVal ?? false;
+  set _showLeaderboard(bool value) => _showLeaderboardVal = value;
+
+  double? _invulnTimerVal;
+  double get _invulnTimer => _invulnTimerVal ?? 0.0;
+  set _invulnTimer(double value) => _invulnTimerVal = value;
+
+  double _gameOverCooldown = 0.0;
   double _flashAlpha = 0.0;
   double _shakeTimer = 0.0;
   Offset _shakeOffset = Offset.zero;
 
   final List<PipePair> _pipes = [];
-  final List<NightStar> _stars = [];
-  final List<GhostSprite> _ghosts = [];
+  List<HeartPickup>? _heartsList;
+  List<HeartPickup> get _hearts => _heartsList ??= <HeartPickup>[];
+
+  List<SkyCloud>? _cloudsList;
+  List<SkyCloud> get _clouds => _cloudsList ??= _createDefaultClouds();
+
   final List<FlapParticle> _particles = [];
+  List<FloatingFeedback>? _feedbacksList;
+  List<FloatingFeedback> get _feedbacks =>
+      _feedbacksList ??= <FloatingFeedback>[];
+
   double? _lastGapY;
+
+  double? _prevBirdYVal;
+  double get _prevBirdY => _prevBirdYVal ?? _birdY;
+  set _prevBirdY(double value) => _prevBirdYVal = value;
+
+  double? _trailEmitAccumVal;
+  double get _trailEmitAccum => _trailEmitAccumVal ?? 0.0;
+  set _trailEmitAccum(double value) => _trailEmitAccumVal = value;
+
+  String? _dailyDateKeyVal;
+  String get _dailyDateKey =>
+      _dailyDateKeyVal ??= DailyChallengeService.getDailyDateKey();
+  set _dailyDateKey(String value) => _dailyDateKeyVal = value;
+
+  DailyCourseProfile? _dailyCourseVal;
+  DailyCourseProfile get _dailyCourse =>
+      _dailyCourseVal ??= DailyChallengeService.getCourseProfile(_dailyDateKey);
+  set _dailyCourse(DailyCourseProfile value) => _dailyCourseVal = value;
+
+  DailyChallengeStorage? _dailyStorageVal;
+  DailyChallengeStorage get _dailyStorage =>
+      _dailyStorageVal ??= _sfx.loadDailyStorage(_dailyDateKey);
+  set _dailyStorage(DailyChallengeStorage value) => _dailyStorageVal = value;
+
+  SeededRng? _dailyRngVal;
+  SeededRng get _dailyRng => _dailyRngVal ??= SeededRng(_dailyCourse.seed);
+  set _dailyRng(SeededRng value) => _dailyRngVal = value;
+
+  int? _dailyRank;
+
+  String? _resetCountdownVal;
+  String get _resetCountdown =>
+      _resetCountdownVal ?? DailyChallengeService.getCountdownToReset();
+  set _resetCountdown(String value) => _resetCountdownVal = value;
 
   @override
   void initState() {
     super.initState();
     _bestScore = _sfx.loadBestScore();
-    _initStars();
-    _initGhosts();
+    _cloudsList = _createDefaultClouds();
+    _dailyDateKey = DailyChallengeService.getDailyDateKey();
+    _dailyCourse = DailyChallengeService.getCourseProfile(_dailyDateKey);
+    _dailyStorage = _sfx.loadDailyStorage(_dailyDateKey);
+    _dailyRng = SeededRng(_dailyCourse.seed);
+    _resetCountdown = DailyChallengeService.getCountdownToReset();
     _ticker = createTicker(_onTick)..start();
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) return;
+      final DateTime now = DateTime.now();
+      final String todayKey = DailyChallengeService.getDailyDateKey(now);
+      setState(() {
+        _resetCountdown = DailyChallengeService.getCountdownToReset(now);
+        if (todayKey != _dailyDateKey) {
+          _dailyDateKey = todayKey;
+          _dailyCourse = DailyChallengeService.getCourseProfile(todayKey);
+          _dailyStorage = _sfx.loadDailyStorage(todayKey);
+          _dailyRng = SeededRng(_dailyCourse.seed);
+          _dailyRank = null;
+          _isNewDailyBest = false;
+        }
+      });
+    });
   }
 
   @override
   void dispose() {
+    _countdownTimer?.cancel();
     _ticker.dispose();
     _focusNode.dispose();
     super.dispose();
   }
 
-  void _initStars() {
-    _stars.clear();
-    const List<Color> palette = [
-      Colors.white,
-      Color(0xFFAEC6FF),
-      Color(0xFFFFE45E),
+  List<SkyCloud> _createDefaultClouds() {
+    return [
+      SkyCloud(x: 160, y: 110, scale: 1.05, speedFactor: 0.14),
+      SkyCloud(x: 470, y: 82, scale: 0.85, speedFactor: 0.10),
+      SkyCloud(x: 780, y: 132, scale: 1.15, speedFactor: 0.16),
     ];
-    for (int i = 0; i < 48; i++) {
-      final bool isSparkle = i % 7 == 0;
-      _stars.add(
-        NightStar(
-          nx: _rng.nextDouble(),
-          ny: _rng.nextDouble() * 0.92,
-          size: isSparkle ? 3.5 + _rng.nextDouble() * 2.0 : 2.0 + (i % 2),
-          color: isSparkle ? const Color(0xFFFFE45E) : palette[i % palette.length],
-          isSparkle: isSparkle,
-          phase: _rng.nextDouble() * math.pi * 2,
-        ),
-      );
-    }
-  }
-
-  void _initGhosts() {
-    _ghosts.clear();
-    _ghosts.addAll([
-      GhostSprite(
-        x: 110,
-        baseY: 105,
-        scale: 1.0,
-        phase: 0.4,
-        speedFactor: 0.16,
-      ),
-      GhostSprite(
-        x: 135,
-        baseY: 380,
-        scale: 0.95,
-        phase: 2.3,
-        speedFactor: 0.19,
-      ),
-      GhostSprite(
-        x: 520,
-        baseY: 165,
-        scale: 0.85,
-        phase: 4.1,
-        speedFactor: 0.14,
-      ),
-    ]);
   }
 
   double get _groundTop =>
@@ -122,12 +193,24 @@ class _FlappyGameScreenState extends State<FlappyGameScreen>
 
   double get _birdX => (_viewport.width * 0.26).clamp(84.0, 220.0);
 
+  double get _baseSpeed =>
+      _mode.isDaily ? _dailyCourse.pipeSpeed : _mode.pipeSpeed;
+
+  double get _pipeSpacing =>
+      _mode.isDaily ? _dailyCourse.pipeSpacing : _mode.pipeSpacing;
+
+  double get _currentSpeed {
+    if (!_mode.accelerates) return _baseSpeed;
+    return _baseSpeed + math.min(120.0, _score * 4.0);
+  }
+
+  double get _speedMultiplier => _currentSpeed / _baseSpeed;
+
   void _onTick(Duration elapsed) {
     final Duration? prev = _lastTick;
     _lastTick = elapsed;
-    if (prev == null) {
-      return;
-    }
+    if (prev == null) return;
+
     final double rawDt = (elapsed - prev).inMicroseconds / 1000000.0;
     final double dt = rawDt.clamp(0.0, 0.033);
 
@@ -137,11 +220,25 @@ class _FlappyGameScreenState extends State<FlappyGameScreen>
   }
 
   void _update(double dt) {
-    if (_phase == GamePhase.paused) {
-      return;
-    }
+    if (_phase == GamePhase.paused) return;
 
     _elapsedTime += dt;
+
+    if (_invulnTimer > 0) {
+      _invulnTimer = math.max(0.0, _invulnTimer - dt);
+    }
+
+    if (_flapSquash > 0) {
+      _flapSquash = math.max(0.0, _flapSquash - dt * 5.2);
+    }
+
+    if (_hatBounce > 0) {
+      _hatBounce = math.max(0.0, _hatBounce - dt * 4.0);
+    }
+
+    if (_scorePop > 0) {
+      _scorePop = math.max(0.0, _scorePop - dt * 4.5);
+    }
 
     if (_flashAlpha > 0) {
       _flashAlpha = math.max(0.0, _flashAlpha - dt * 5.0);
@@ -158,7 +255,6 @@ class _FlappyGameScreenState extends State<FlappyGameScreen>
       _shakeOffset = Offset.zero;
     }
 
-    // Update particles regardless of phase
     for (int i = _particles.length - 1; i >= 0; i--) {
       final FlapParticle p = _particles[i];
       p.life -= dt;
@@ -166,34 +262,56 @@ class _FlappyGameScreenState extends State<FlappyGameScreen>
         _particles.removeAt(i);
         continue;
       }
+      if (p.drag > 0) {
+        final double damp = math.exp(-p.drag * dt);
+        p.vx *= damp;
+        p.vy *= damp;
+      }
       p.x += p.vx * dt;
       p.y += p.vy * dt;
-      p.vy += 320.0 * dt;
+      p.vy += p.gravity * dt;
+      if (p.spin != 0) {
+        p.rotation += p.spin * dt;
+      }
+    }
+    if (_particles.length > 200) {
+      _particles.removeRange(0, _particles.length - 200);
+    }
+
+    for (int i = _feedbacks.length - 1; i >= 0; i--) {
+      final FloatingFeedback fb = _feedbacks[i];
+      fb.life -= dt;
+      if (fb.life <= 0) {
+        _feedbacks.removeAt(i);
+        continue;
+      }
+      fb.y -= 42.0 * dt;
     }
 
     if (_phase == GamePhase.ready) {
-      _worldScroll += _difficulty.pipeSpeed * 0.55 * dt;
-      _updateGhosts(_difficulty.pipeSpeed * 0.55, dt);
-      _birdY = _groundTop * 0.42 + math.sin(_elapsedTime * 5.2) * 9.0;
-      _birdAngle = 0.0;
-      _advanceWingAnimation(dt, speed: 9.0);
+      final double idleSpeed = _baseSpeed * 0.52;
+      _worldScroll += idleSpeed * dt;
+      _updateClouds(idleSpeed, dt);
+      _birdY = _groundTop * 0.40 + math.sin(_elapsedTime * 5.0) * 9.0;
+      _birdAngle = math.cos(_elapsedTime * 5.0) * 0.06;
+      _wingPhase += dt * 11.0;
+      _prevBirdY = _birdY;
       return;
     }
 
     if (_phase == GamePhase.playing) {
-      final double speed = _difficulty.pipeSpeed;
+      final double speed = _currentSpeed;
       _worldScroll += speed * dt;
-      _updateGhosts(speed, dt);
-      _advanceWingAnimation(dt, speed: _birdVelocity < 0 ? 15.0 : 8.0);
+      _updateClouds(speed, dt);
+      _wingPhase += dt * (_birdVelocity < 0 ? 22.0 : 12.0);
 
-      // Bird physics
+      final double prevY = _birdY;
       _birdVelocity = math.min(
         GamePhysics.maxFallSpeed,
         _birdVelocity + GamePhysics.gravity * dt,
       );
       _birdY += _birdVelocity * dt;
 
-      // Ceiling clamp
       const double minY = GamePhysics.birdHitRadius + 6.0;
       if (_birdY < minY) {
         _birdY = minY;
@@ -202,47 +320,127 @@ class _FlappyGameScreenState extends State<FlappyGameScreen>
         }
       }
 
-      // Smooth arcade pitch tilt
+      // Persistent fading slipstream trail whenever the bird changes altitude
+      final double altitudeChange = (_birdY - prevY).abs();
+      final double verticalSpeed = _birdVelocity.abs();
+      if (altitudeChange > 0.2 || verticalSpeed > 32.0) {
+        final double emitRate = 24.0 + math.min(36.0, verticalSpeed * 0.085);
+        _trailEmitAccum += dt * emitRate;
+        final bool climbing = _birdVelocity < 0;
+        while (_trailEmitAccum >= 1.0) {
+          _trailEmitAccum -= 1.0;
+          final double life = climbing
+              ? 0.56 + _rng.nextDouble() * 0.16
+              : 0.46 + _rng.nextDouble() * 0.14;
+          final double tailOffsetX = -17.0 + (_rng.nextDouble() * 4.0 - 2.0);
+          final double tailOffsetY =
+              (climbing ? 4.0 : -1.0) + (_rng.nextDouble() * 6.0 - 3.0);
+          _particles.add(
+            FlapParticle(
+              x: _birdX + tailOffsetX,
+              y: _birdY + tailOffsetY,
+              vx: -speed * (0.88 + _rng.nextDouble() * 0.14),
+              vy: -_birdVelocity * 0.06 + (_rng.nextDouble() * 24.0 - 12.0),
+              size: (climbing ? 5.2 : 4.2) +
+                  math.min(2.8, verticalSpeed * 0.004) +
+                  _rng.nextDouble() * 1.6,
+              life: life,
+              maxLife: life,
+              color: climbing
+                  ? (_rng.nextDouble() < 0.55
+                      ? Colors.white.withValues(alpha: 0.9)
+                      : _birdSkin.primaryLight)
+                  : (_rng.nextDouble() < 0.65
+                      ? _birdSkin.primaryLight
+                      : Colors.white.withValues(alpha: 0.82)),
+              kind: ParticleKind.trail,
+              gravity: climbing ? 22.0 : -10.0,
+              drag: 0.9,
+            ),
+          );
+
+          if (verticalSpeed > 260.0 && _rng.nextDouble() < 0.24) {
+            final double fLife = 0.5 + _rng.nextDouble() * 0.18;
+            _particles.add(
+              FlapParticle(
+                x: _birdX - 18.0,
+                y: _birdY + (_rng.nextDouble() * 8.0 - 4.0),
+                vx: -speed * (0.76 + _rng.nextDouble() * 0.18),
+                vy: -_birdVelocity * 0.1 + (_rng.nextDouble() * 34.0 - 17.0),
+                size: 3.6 + _rng.nextDouble() * 1.8,
+                life: fLife,
+                maxLife: fLife,
+                color: _birdSkin.primaryMid,
+                kind: ParticleKind.feather,
+                gravity: 40.0,
+                drag: 1.0,
+                rotation: _rng.nextDouble() * math.pi * 2,
+                spin: (_rng.nextDouble() - 0.5) * 8.0,
+              ),
+            );
+          }
+        }
+      }
+      _prevBirdY = _birdY;
+
       if (_birdVelocity < 90) {
-        _birdAngle = (_birdAngle - dt * 6.5).clamp(-0.44, 1.35);
+        _birdAngle = (_birdAngle - dt * 6.5).clamp(-0.42, 1.32);
       } else {
         final double fallRatio =
             ((_birdVelocity - 90) / (GamePhysics.maxFallSpeed - 90))
                 .clamp(0.0, 1.0);
-        final double targetAngle = -0.15 + fallRatio * 1.48;
+        final double targetAngle = -0.14 + fallRatio * 1.44;
         _birdAngle += (targetAngle - _birdAngle) * math.min(1.0, dt * 8.0);
       }
 
-      // Move pipes & score
       for (final PipePair pipe in _pipes) {
         pipe.x -= speed * dt;
         if (!pipe.passed && pipe.x + GamePhysics.pipeWidth / 2 < _birdX) {
           pipe.passed = true;
-          _score += 1;
-          if (_score > _bestScore) {
-            _bestScore = _score;
-            _isNewBest = true;
-            _sfx.saveBestScore(_bestScore);
-          }
+          _incrementScore(1);
           _sfx.play(GameSfx.score);
         }
       }
+      _pipes.removeWhere((p) => p.x < -GamePhysics.pipeWidth - 40);
 
-      _pipes.removeWhere((p) => p.x < -GamePhysics.pipeWidth - 30);
+      for (final HeartPickup heart in _hearts) {
+        heart.x -= speed * dt;
+        if (!heart.collected) {
+          final double hy =
+              heart.baseY + math.sin(_elapsedTime * 4.2 + heart.phase) * 6.0;
+          final double dx = heart.x - _birdX;
+          final double dy = hy - _birdY;
+          if (dx * dx + dy * dy <= 33 * 33) {
+            _collectHeart(heart, hy);
+          }
+        }
+      }
+      _hearts.removeWhere((h) => h.collected || h.x < -40);
 
-      // Spawn new pipes cleanly based on spacing
       if (_pipes.isEmpty) {
         _spawnPipe(math.max(_viewport.width + 60, _birdX + 340));
       } else {
         final double rightmostX = _pipes.last.x;
-        if (rightmostX < _viewport.width - _difficulty.pipeSpacing + 90) {
-          _spawnPipe(rightmostX + _difficulty.pipeSpacing);
+        if (rightmostX < _viewport.width - _pipeSpacing + 90) {
+          _spawnPipe(rightmostX + _pipeSpacing);
         }
       }
 
-      // Collision checks
-      if (_checkCollisions()) {
-        _triggerCrash();
+      if (_birdY + GamePhysics.birdHitRadius >= _groundTop) {
+        if (_mode.heartsEnabled && _heartsRemaining > 0 && _invulnTimer <= 0) {
+          _consumeShield(fromGround: true);
+        } else {
+          _triggerCrash(hitGround: true);
+        }
+        return;
+      }
+
+      if (_invulnTimer <= 0 && _checkPipeCollision()) {
+        if (_mode.heartsEnabled && _heartsRemaining > 0) {
+          _consumeShield(fromGround: false);
+        } else {
+          _triggerCrash(hitGround: false);
+        }
       }
       return;
     }
@@ -255,11 +453,31 @@ class _FlappyGameScreenState extends State<FlappyGameScreen>
       _birdY += _birdVelocity * dt;
       _birdAngle = math.min(1.48, _birdAngle + dt * 5.2);
 
+      _trailEmitAccum += dt * 26.0;
+      while (_trailEmitAccum >= 1.0) {
+        _trailEmitAccum -= 1.0;
+        final double life = 0.42 + _rng.nextDouble() * 0.14;
+        _particles.add(
+          FlapParticle(
+            x: _birdX + (_rng.nextDouble() * 10.0 - 5.0),
+            y: _birdY - 6.0 + (_rng.nextDouble() * 6.0 - 3.0),
+            vx: -55.0 + (_rng.nextDouble() * 50.0 - 25.0),
+            vy: -65.0 - _rng.nextDouble() * 45.0,
+            size: 4.5 + _rng.nextDouble() * 2.5,
+            life: life,
+            maxLife: life,
+            color: _rng.nextBool() ? _birdSkin.primaryLight : Colors.white,
+            kind: ParticleKind.trail,
+            gravity: 25.0,
+            drag: 1.5,
+          ),
+        );
+      }
+
       final double floorY = _groundTop - GamePhysics.birdHitRadius;
       if (_birdY >= floorY) {
         _birdY = floorY;
-        _phase = GamePhase.gameOver;
-        _gameOverCooldown = 0.35;
+        _finalizeGameOver();
       }
       return;
     }
@@ -269,62 +487,228 @@ class _FlappyGameScreenState extends State<FlappyGameScreen>
     }
   }
 
-  void _advanceWingAnimation(double dt, {required double speed}) {
-    _wingTimer += dt * speed;
-    if (_wingTimer >= 1.0) {
-      _wingTimer = 0.0;
-      _wingFrame = (_wingFrame + 1) % 3;
+  void _finalizeGameOver() {
+    _phase = GamePhase.gameOver;
+    _gameOverCooldown = 0.35;
+
+    if (_mode.isDaily) {
+      final DailyChallengeStorage current = _sfx.loadDailyStorage(_dailyDateKey);
+      final DailyRunEntry newRun = DailyRunEntry(
+        id: '${DateTime.now().millisecondsSinceEpoch}_${_rng.nextInt(9999)}',
+        score: _score,
+        heartsCollected: _heartsCollected,
+        skin: _birdSkin,
+        timestampMs: DateTime.now().millisecondsSinceEpoch,
+      );
+      final List<DailyRunEntry> updatedRuns = [newRun, ...current.runs]
+        ..sort((a, b) {
+          final int byScore = b.score.compareTo(a.score);
+          return byScore != 0
+              ? byScore
+              : b.timestampMs.compareTo(a.timestampMs);
+        });
+      final bool newDailyBest = _score > current.bestScore;
+      final DailyChallengeStorage updated = DailyChallengeStorage(
+        dateKey: _dailyDateKey,
+        bestScore: math.max(current.bestScore, _score),
+        attempts: current.attempts + 1,
+        runs: updatedRuns.take(10).toList(),
+      );
+      _sfx.saveDailyStorage(updated);
+      _dailyStorage = updated;
+      _isNewDailyBest = newDailyBest;
+
+      final List<DailyLeaderboardRow> rows =
+          DailyChallengeService.buildLeaderboard(updated);
+      final int idx = rows.indexWhere((r) => r.isPlayer && r.score == _score);
+      _dailyRank = idx >= 0 ? rows[idx].rank : null;
     }
   }
 
-  void _updateGhosts(double worldSpeed, double dt) {
-    final double w = math.max(360.0, _viewport.width);
-    for (final GhostSprite ghost in _ghosts) {
-      ghost.x -= worldSpeed * ghost.speedFactor * dt;
-      if (ghost.x < -60) {
-        ghost.x = w + 50 + _rng.nextDouble() * 90;
-        ghost.baseY = 65 + _rng.nextDouble() * math.max(120.0, _groundTop - 160);
+  void _incrementScore(int points) {
+    _score += points;
+    _scorePop = 1.0;
+    if (_score > _bestScore) {
+      _bestScore = _score;
+      _isNewBest = true;
+      _sfx.saveBestScore(_bestScore);
+    }
+  }
+
+  void _collectHeart(HeartPickup heart, double hy) {
+    heart.collected = true;
+    _heartsCollected += 1;
+    _sfx.play(GameSfx.heart);
+
+    if (_heartsRemaining < GamePhysics.maxHearts) {
+      _heartsRemaining += 1;
+      _feedbacks.add(
+        FloatingFeedback(
+          x: heart.x,
+          y: hy - 14,
+          text: '+1 LIFE ♥',
+          color: GameColors.heartRed,
+          life: 0.95,
+          maxLife: 0.95,
+        ),
+      );
+    } else {
+      _incrementScore(2);
+      _feedbacks.add(
+        FloatingFeedback(
+          x: heart.x,
+          y: hy - 14,
+          text: '+2 BONUS',
+          color: GameColors.accentGold,
+          life: 0.95,
+          maxLife: 0.95,
+        ),
+      );
+    }
+
+    for (int i = 0; i < 12; i++) {
+      final double a = (math.pi * 2 / 12) * i;
+      final double spd = 70 + _rng.nextDouble() * 85;
+      _particles.add(
+        FlapParticle(
+          x: heart.x,
+          y: hy,
+          vx: math.cos(a) * spd,
+          vy: math.sin(a) * spd - 30,
+          size: 5 + _rng.nextDouble() * 3,
+          life: 0.45,
+          maxLife: 0.45,
+          color: i.isEven ? GameColors.heartBright : Colors.white,
+        ),
+      );
+    }
+  }
+
+  void _consumeShield({required bool fromGround}) {
+    _heartsRemaining = math.max(0, _heartsRemaining - 1);
+    _invulnTimer = 1.35;
+    _flashAlpha = 0.45;
+    _shakeTimer = 0.16;
+    _sfx.play(GameSfx.shield);
+
+    if (fromGround) {
+      _birdY = _groundTop - GamePhysics.birdHitRadius - 12;
+      _birdVelocity = GamePhysics.flapVelocity * 0.95;
+      _birdAngle = -0.35;
+    }
+
+    _feedbacks.add(
+      FloatingFeedback(
+        x: _birdX,
+        y: _birdY - 26,
+        text: 'SHIELD!',
+        color: GameColors.brandNavy,
+        life: 0.95,
+        maxLife: 0.95,
+      ),
+    );
+
+    for (int i = 0; i < 12; i++) {
+      final double a = (math.pi * 2 / 12) * i;
+      _particles.add(
+        FlapParticle(
+          x: _birdX,
+          y: _birdY,
+          vx: math.cos(a) * 120,
+          vy: math.sin(a) * 120,
+          size: 5,
+          life: 0.4,
+          maxLife: 0.4,
+          color: i.isEven ? GameColors.heartBright : _birdSkin.primaryLight,
+        ),
+      );
+    }
+  }
+
+  void _updateClouds(double speed, double dt) {
+    final double w = math.max(420.0, _viewport.width);
+    for (final SkyCloud cloud in _clouds) {
+      cloud.x -= speed * cloud.speedFactor * dt;
+      if (cloud.x < -140) {
+        cloud.x = w + 140 + _rng.nextDouble() * 80;
+        cloud.y = 68 + _rng.nextDouble() * 88;
       }
     }
   }
 
+  double _nextRandom() =>
+      _mode.isDaily ? _dailyRng.nextDouble() : _rng.nextDouble();
+
   void _spawnPipe(double x) {
-    final double gap = _difficulty.pipeGap;
-    final double margin = 62.0 + gap / 2;
+    _pipesSpawnedCount += 1;
+
+    final ObstacleKind kind;
+    if (_mode.isDaily) {
+      final double roll = _nextRandom();
+      if (_pipesSpawnedCount >= 2 && roll > 0.62) {
+        kind = ObstacleKind.hoverPropellerGate;
+      } else if (_pipesSpawnedCount >= 3 && roll > 0.34) {
+        kind = ObstacleKind.beaconTower;
+      } else {
+        kind = ObstacleKind.emeraldCylinder;
+      }
+    } else {
+      if (_pipesSpawnedCount >= 3 && _pipesSpawnedCount % 3 == 0) {
+        kind = ObstacleKind.hoverPropellerGate;
+      } else if (_pipesSpawnedCount >= 4 && _pipesSpawnedCount % 4 == 0) {
+        kind = ObstacleKind.beaconTower;
+      } else {
+        kind = ObstacleKind.emeraldCylinder;
+      }
+    }
+
+    final double hoverAmplitude =
+        kind == ObstacleKind.hoverPropellerGate ? 20.0 : 0.0;
+    final double gap = _mode.isDaily ? _dailyCourse.pipeGap : _mode.pipeGap;
+    final double margin = 68.0 + gap / 2 + hoverAmplitude;
     final double minY = margin;
     final double maxY = math.max(minY + 10.0, _groundTop - margin);
 
     double gapY;
     if (_lastGapY == null) {
-      gapY = minY + _rng.nextDouble() * (maxY - minY);
+      gapY = minY + _nextRandom() * (maxY - minY);
     } else {
-      const double maxDelta = 165.0;
+      const double maxDelta = 155.0;
       final double lo = math.max(minY, _lastGapY! - maxDelta);
       final double hi = math.min(maxY, _lastGapY! + maxDelta);
-      gapY = lo + _rng.nextDouble() * math.max(1.0, hi - lo);
+      gapY = lo + _nextRandom() * math.max(1.0, hi - lo);
     }
     _lastGapY = gapY;
 
+    final double phase = _nextRandom() * math.pi * 2;
     _pipes.add(
       PipePair(
         x: x,
-        gapCenterY: gapY,
+        baseGapCenterY: gapY,
         gapHeight: gap,
+        kind: kind,
+        hoverAmplitude: hoverAmplitude,
+        hoverSpeed: 2.2,
+        phase: phase,
       ),
     );
+
+    if (_mode.heartsEnabled && _pipesSpawnedCount % 2 == 1) {
+      _hearts.add(
+        HeartPickup(
+          x: x + GamePhysics.pipeWidth / 2,
+          baseY: gapY,
+          phase: _nextRandom() * math.pi * 2,
+        ),
+      );
+    }
   }
 
-  bool _checkCollisions() {
+  bool _checkPipeCollision() {
     final double bx = _birdX;
     final double by = _birdY;
     const double r = GamePhysics.birdHitRadius;
 
-    // Ground collision
-    if (by + r >= _groundTop) {
-      return true;
-    }
-
-    // Pipe collisions (shaft + overhanging cap)
     for (final PipePair pipe in _pipes) {
       if (pipe.x - GamePhysics.pipeCapOverhang > bx + r ||
           pipe.x + GamePhysics.pipeWidth + GamePhysics.pipeCapOverhang <
@@ -332,17 +716,19 @@ class _FlappyGameScreenState extends State<FlappyGameScreen>
         continue;
       }
 
-      // Top pipe shaft + cap
-      if (pipe.topPipeBottom > 0) {
+      final double topBottom = pipe.topPipeBottomAt(_elapsedTime);
+      final double bottomTop = pipe.bottomPipeTopAt(_elapsedTime);
+
+      if (topBottom > 0) {
         final Rect topShaft = Rect.fromLTWH(
           pipe.x,
-          -200,
+          -220,
           GamePhysics.pipeWidth,
-          pipe.topPipeBottom + 200,
+          topBottom + 220,
         );
         final Rect topCap = Rect.fromLTWH(
           pipe.x - GamePhysics.pipeCapOverhang,
-          pipe.topPipeBottom - GamePhysics.pipeCapHeight,
+          topBottom - GamePhysics.pipeCapHeight,
           GamePhysics.pipeWidth + GamePhysics.pipeCapOverhang * 2,
           GamePhysics.pipeCapHeight,
         );
@@ -352,17 +738,16 @@ class _FlappyGameScreenState extends State<FlappyGameScreen>
         }
       }
 
-      // Bottom pipe shaft + cap
-      if (pipe.bottomPipeTop < _groundTop) {
+      if (bottomTop < _groundTop) {
         final Rect bottomShaft = Rect.fromLTWH(
           pipe.x,
-          pipe.bottomPipeTop,
+          bottomTop,
           GamePhysics.pipeWidth,
-          _groundTop - pipe.bottomPipeTop,
+          _groundTop - bottomTop,
         );
         final Rect bottomCap = Rect.fromLTWH(
           pipe.x - GamePhysics.pipeCapOverhang,
-          pipe.bottomPipeTop,
+          bottomTop,
           GamePhysics.pipeWidth + GamePhysics.pipeCapOverhang * 2,
           GamePhysics.pipeCapHeight,
         );
@@ -384,33 +769,32 @@ class _FlappyGameScreenState extends State<FlappyGameScreen>
     return (dx * dx + dy * dy) < (r * r);
   }
 
-  void _triggerCrash() {
+  void _triggerCrash({required bool hitGround}) {
     _sfx.play(GameSfx.hit);
-    _flashAlpha = 0.78;
+    _flashAlpha = 0.72;
     _shakeTimer = 0.22;
 
-    for (int i = 0; i < 12; i++) {
+    for (int i = 0; i < 14; i++) {
       final double angle = _rng.nextDouble() * math.pi * 2;
-      final double spd = 70 + _rng.nextDouble() * 170;
+      final double spd = 75 + _rng.nextDouble() * 170;
       _particles.add(
         FlapParticle(
           x: _birdX,
           y: _birdY,
           vx: math.cos(angle) * spd,
           vy: math.sin(angle) * spd - 60,
-          size: 4 + _rng.nextDouble() * 4,
+          size: 4.5 + _rng.nextDouble() * 4,
           life: 0.45 + _rng.nextDouble() * 0.25,
           maxLife: 0.7,
-          color: i.isEven ? GameColors.birdYellow : Colors.white,
+          color: i.isEven ? _birdSkin.primaryMid : _birdSkin.hatCrown,
         ),
       );
     }
 
     final double floorY = _groundTop - GamePhysics.birdHitRadius;
-    if (_birdY >= floorY - 2) {
+    if (hitGround || _birdY >= floorY - 2) {
       _birdY = floorY;
-      _phase = GamePhase.gameOver;
-      _gameOverCooldown = 0.35;
+      _finalizeGameOver();
     } else {
       _birdVelocity = -120.0;
       _phase = GamePhase.dying;
@@ -419,42 +803,89 @@ class _FlappyGameScreenState extends State<FlappyGameScreen>
   }
 
   void _flap() {
+    if (_showLeaderboard) return;
     if (_phase == GamePhase.paused || _phase == GamePhase.dying) return;
 
     if (_phase == GamePhase.gameOver) {
       if (_gameOverCooldown <= 0) {
-        _resetToReady();
+        _startNewRunImmediately();
       }
       return;
     }
 
     setState(() {
       if (_phase == GamePhase.ready) {
+        if (_mode.isDaily) {
+          final String todayKey = DailyChallengeService.getDailyDateKey();
+          _dailyDateKey = todayKey;
+          _dailyCourse = DailyChallengeService.getCourseProfile(todayKey);
+          _dailyStorage = _sfx.loadDailyStorage(todayKey);
+          _dailyRng = SeededRng(_dailyCourse.seed);
+        }
         _phase = GamePhase.playing;
         _score = 0;
+        _heartsCollected = 0;
+        _heartsRemaining = _mode.heartsEnabled ? 1 : 0;
+        _pipesSpawnedCount = 0;
+        _invulnTimer = 0.0;
         _isNewBest = false;
+        _isNewDailyBest = false;
+        _dailyRank = null;
         _pipes.clear();
+        _hearts.clear();
+        _feedbacks.clear();
         _lastGapY = null;
+        _prevBirdY = _birdY;
+        _trailEmitAccum = 0.0;
         _spawnPipe(math.max(_viewport.width * 0.85, _birdX + 340));
       }
 
       _birdVelocity = GamePhysics.flapVelocity;
-      _birdAngle = -0.44;
-      _wingFrame = 0;
-      _wingTimer = 0.0;
+      _birdAngle = -0.42;
+      _flapSquash = 1.0;
+      _hatBounce = 1.0;
 
-      // Subtle puff particles under wing
-      for (int i = 0; i < 4; i++) {
+      final double worldSpeed = _currentSpeed;
+      for (int i = 0; i < 6; i++) {
+        final double life = 0.52 + _rng.nextDouble() * 0.2;
         _particles.add(
           FlapParticle(
-            x: _birdX - 16 + (_rng.nextDouble() * 8 - 4),
-            y: _birdY + 8 + (_rng.nextDouble() * 6 - 3),
-            vx: -60 - _rng.nextDouble() * 50,
-            vy: 40 + _rng.nextDouble() * 60,
-            size: 3.5 + _rng.nextDouble() * 2.5,
-            life: 0.28,
-            maxLife: 0.28,
-            color: Colors.white.withValues(alpha: 0.85),
+            x: _birdX - 16 - i * 2.5 + (_rng.nextDouble() * 6 - 3),
+            y: _birdY + 5 + (_rng.nextDouble() * 8 - 4),
+            vx: -worldSpeed * (0.82 + _rng.nextDouble() * 0.22),
+            vy: 35 + _rng.nextDouble() * 65,
+            size: 5.5 + _rng.nextDouble() * 3.5,
+            life: life,
+            maxLife: life,
+            color: i.isEven
+                ? Colors.white.withValues(alpha: 0.92)
+                : _birdSkin.primaryLight,
+            kind: ParticleKind.trail,
+            gravity: 55.0,
+            drag: 1.15,
+          ),
+        );
+      }
+
+      for (int i = 0; i < 3; i++) {
+        final double life = 0.58 + _rng.nextDouble() * 0.18;
+        _particles.add(
+          FlapParticle(
+            x: _birdX - 18 + (_rng.nextDouble() * 6 - 3),
+            y: _birdY + 3 + (_rng.nextDouble() * 8 - 4),
+            vx: -worldSpeed * (0.68 + _rng.nextDouble() * 0.24),
+            vy: 18 + _rng.nextDouble() * 70,
+            size: 4.5 + _rng.nextDouble() * 2.2,
+            life: life,
+            maxLife: life,
+            color: i == 0
+                ? Colors.white
+                : (i == 1 ? _birdSkin.primaryLight : _birdSkin.primaryMid),
+            kind: ParticleKind.feather,
+            gravity: 88.0,
+            drag: 1.0,
+            rotation: _rng.nextDouble() * math.pi * 2,
+            spin: (_rng.nextDouble() - 0.5) * 9.0,
           ),
         );
       }
@@ -462,18 +893,37 @@ class _FlappyGameScreenState extends State<FlappyGameScreen>
     _sfx.play(GameSfx.flap);
   }
 
-  void _resetToReady() {
+  void _startNewRunImmediately() {
     _sfx.play(GameSfx.swoosh);
     setState(() {
+      if (_mode.isDaily) {
+        final String todayKey = DailyChallengeService.getDailyDateKey();
+        _dailyDateKey = todayKey;
+        _dailyCourse = DailyChallengeService.getCourseProfile(todayKey);
+        _dailyRng = SeededRng(_dailyCourse.seed);
+      }
       _phase = GamePhase.ready;
       _score = 0;
+      _heartsCollected = 0;
+      _heartsRemaining = _mode.heartsEnabled ? 1 : 0;
+      _pipesSpawnedCount = 0;
+      _invulnTimer = 0.0;
+      _flapSquash = 0.0;
+      _hatBounce = 0.0;
+      _scorePop = 0.0;
       _isNewBest = false;
+      _isNewDailyBest = false;
+      _dailyRank = null;
       _pipes.clear();
+      _hearts.clear();
       _particles.clear();
+      _feedbacks.clear();
       _lastGapY = null;
       _birdVelocity = 0.0;
       _birdAngle = 0.0;
-      _birdY = _groundTop * 0.42;
+      _birdY = _groundTop * 0.40;
+      _prevBirdY = _birdY;
+      _trailEmitAccum = 0.0;
       _flashAlpha = 0.0;
       _shakeTimer = 0.0;
     });
@@ -503,11 +953,19 @@ class _FlappyGameScreenState extends State<FlappyGameScreen>
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
     final LogicalKeyboardKey key = event.logicalKey;
 
+    if (_showLeaderboard) {
+      if (key == LogicalKeyboardKey.escape) {
+        setState(() => _showLeaderboard = false);
+        return KeyEventResult.handled;
+      }
+      return KeyEventResult.ignored;
+    }
+
     if (key == LogicalKeyboardKey.space ||
         key == LogicalKeyboardKey.arrowUp ||
         key == LogicalKeyboardKey.keyW) {
       if (_phase == GamePhase.gameOver && _gameOverCooldown <= 0) {
-        _resetToReady();
+        _startNewRunImmediately();
       } else {
         _flap();
       }
@@ -523,7 +981,7 @@ class _FlappyGameScreenState extends State<FlappyGameScreen>
 
     if (key == LogicalKeyboardKey.keyR || key == LogicalKeyboardKey.enter) {
       if (_phase == GamePhase.gameOver || _phase == GamePhase.paused) {
-        _resetToReady();
+        _startNewRunImmediately();
         return KeyEventResult.handled;
       }
     }
@@ -545,7 +1003,6 @@ class _FlappyGameScreenState extends State<FlappyGameScreen>
             return Stack(
               fit: StackFit.expand,
               children: [
-                // Playfield canvas with instant zero-latency pointer-down response
                 Listener(
                   behavior: HitTestBehavior.opaque,
                   onPointerDown: (_) {
@@ -560,38 +1017,137 @@ class _FlappyGameScreenState extends State<FlappyGameScreen>
                       birdX: _birdX,
                       birdY: _birdY,
                       birdAngle: _birdAngle,
-                      wingFrame: _wingFrame,
+                      wingPhase: _wingPhase,
+                      flapSquash: _flapSquash,
+                      hatBounce: _hatBounce,
+                      birdSkin: _birdSkin,
+                      invulnTimer: _invulnTimer,
                       pipes: _pipes,
-                      stars: _stars,
-                      ghosts: _ghosts,
+                      hearts: _hearts,
+                      clouds: _clouds,
                       particles: _particles,
+                      feedbacks: _feedbacks,
                       flashAlpha: _flashAlpha,
                       shakeOffset: _shakeOffset,
                     ),
                   ),
                 ),
 
-                // Top-center live score (matching screenshot counter)
                 if (_phase == GamePhase.playing ||
                     _phase == GamePhase.dying ||
                     _phase == GamePhase.paused)
                   Positioned(
-                    top: 26,
-                    left: 0,
-                    right: 0,
-                    child: IgnorePointer(
-                      child: Center(
-                        child: _OutlinedText(
-                          text: '$_score',
-                          fontSize: 54,
-                          strokeWidth: 7,
-                          fillColor: Colors.white,
+                    top: 16,
+                    left: 16,
+                    child: SafeArea(
+                      child: IgnorePointer(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.92),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: GameColors.panelBorder.withValues(alpha: 0.18),
+                              width: 1.5,
+                            ),
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Color(0x260F2744),
+                                offset: Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                _mode.isDaily
+                                    ? 'Daily · ${_dailyCourse.title}'
+                                    : _mode.label,
+                                style: const TextStyle(
+                                  color: GameColors.brandNavy,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              if (_mode.accelerates) ...[
+                                const SizedBox(width: 8),
+                                Text(
+                                  '${_speedMultiplier.toStringAsFixed(1)}x',
+                                  style: const TextStyle(
+                                    color: GameColors.accentSky,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                              ],
+                              if (_mode.heartsEnabled) ...[
+                                const SizedBox(width: 10),
+                                Container(
+                                  width: 1,
+                                  height: 16,
+                                  color: GameColors.brandNavy
+                                      .withValues(alpha: 0.18),
+                                ),
+                                const SizedBox(width: 10),
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: List.generate(
+                                    GamePhysics.maxHearts,
+                                    (int index) {
+                                      final bool filled =
+                                          index < _heartsRemaining;
+                                      return Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 1.5),
+                                        child: Icon(
+                                          filled
+                                              ? Icons.favorite_rounded
+                                              : Icons.favorite_border_rounded,
+                                          size: 18,
+                                          color: filled
+                                              ? GameColors.heartRed
+                                              : GameColors.brandNavy
+                                                  .withValues(alpha: 0.28),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
                         ),
                       ),
                     ),
                   ),
 
-                // Top-right HUD controls (Audio + Pause)
+                if (_phase == GamePhase.playing ||
+                    _phase == GamePhase.dying ||
+                    _phase == GamePhase.paused)
+                  Positioned(
+                    top: 20,
+                    left: 0,
+                    right: 0,
+                    child: IgnorePointer(
+                      child: Center(
+                        child: Transform.scale(
+                          scale: 1.0 + _scorePop * 0.26,
+                          child: _OutlinedText(
+                            text: '$_score',
+                            fontSize: 54,
+                            strokeWidth: 7,
+                            fillColor: GameColors.scoreRed,
+                            strokeColor: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+
                 Positioned(
                   top: 16,
                   right: 16,
@@ -599,6 +1155,14 @@ class _FlappyGameScreenState extends State<FlappyGameScreen>
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
+                        if (_phase == GamePhase.ready) ...[
+                          _DailyBoardPillButton(
+                            onPressed: () {
+                              setState(() => _showLeaderboard = true);
+                            },
+                          ),
+                          const SizedBox(width: 8),
+                        ],
                         _HudIconButton(
                           tooltip: _sfx.muted ? 'Unmute Sound' : 'Mute Sound',
                           icon: _sfx.muted
@@ -623,14 +1187,10 @@ class _FlappyGameScreenState extends State<FlappyGameScreen>
                   ),
                 ),
 
-                // Ready / Title Overlay
                 if (_phase == GamePhase.ready) _buildReadyOverlay(),
-
-                // Paused Overlay
                 if (_phase == GamePhase.paused) _buildPausedOverlay(),
-
-                // Game Over Scoreboard Overlay
                 if (_phase == GamePhase.gameOver) _buildGameOverOverlay(),
+                if (_showLeaderboard) _buildDailyLeaderboardModal(),
               ],
             );
           },
@@ -640,79 +1200,204 @@ class _FlappyGameScreenState extends State<FlappyGameScreen>
   }
 
   Widget _buildReadyOverlay() {
+    final double titleFloat = math.sin(_elapsedTime * 2.5) * 4.0;
     return SafeArea(
       child: Stack(
         children: [
-          // Title Banner above bird
           Positioned(
-            top: math.max(24.0, _groundTop * 0.12),
+            top: math.max(16.0, _groundTop * 0.05),
             left: 16,
             right: 16,
             child: IgnorePointer(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const _OutlinedText(
-                    text: 'FLAPPY BIRD',
-                    fontSize: 44,
-                    strokeWidth: 7,
-                    fillColor: Color(0xFFF8F9FA),
-                  ),
-                  if (_bestScore > 0) ...[
-                    const SizedBox(height: 6),
-                    _OutlinedText(
-                      text: 'BEST $_bestScore',
-                      fontSize: 18,
-                      strokeWidth: 4,
-                      fillColor: GameColors.accentGold,
+              child: Transform.translate(
+                offset: Offset(0, titleFloat),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      "LET'S PLAY WITH 2130 GROUP",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: GameColors.brandNavy,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1.8,
+                        shadows: [
+                          Shadow(
+                            color: Colors.white.withValues(alpha: 0.9),
+                            blurRadius: 6,
+                          ),
+                        ],
+                      ),
                     ),
+                    const SizedBox(height: 4),
+                    const _OutlinedText(
+                      text: 'FLAPPY BIRD',
+                      fontSize: 44,
+                      strokeWidth: 7,
+                      fillColor: GameColors.scoreRed,
+                      strokeColor: Colors.white,
+                    ),
+                    if (_bestScore > 0) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        'All-Time Best · $_bestScore',
+                        style: const TextStyle(
+                          color: GameColors.brandNavy,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
             ),
           ),
 
-          // Prompt & Difficulty selector below bird
           Positioned(
-            bottom: GamePhysics.groundHeight + 28,
+            bottom: GamePhysics.groundHeight + 12,
             left: 16,
             right: 16,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                if (_mode.isDaily) ...[
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.95),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: GameColors.accentGold.withValues(alpha: 0.6),
+                        width: 1.5,
+                      ),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0x33B45309),
+                          offset: Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'TODAY · ${_dailyCourse.title.toUpperCase()}',
+                              style: const TextStyle(
+                                color: Color(0xFFB45309),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 0.8,
+                              ),
+                            ),
+                            Text(
+                              'Best Today: ${_dailyStorage.bestScore} · Resets in $_resetCountdown',
+                              style: const TextStyle(
+                                color: GameColors.brandNavy,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(width: 12),
+                        Material(
+                          color: GameColors.accentGold,
+                          borderRadius: BorderRadius.circular(8),
+                          child: InkWell(
+                            onTap: () {
+                              setState(() => _showLeaderboard = true);
+                            },
+                            borderRadius: BorderRadius.circular(8),
+                            child: const Padding(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
+                              child: Text(
+                                'Leaderboard',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                ],
+                _BirdSkinSelector(
+                  selected: _birdSkin,
+                  onSelected: (BirdSkin skin) {
+                    _sfx.play(GameSfx.swoosh);
+                    setState(() {
+                      _birdSkin = skin;
+                    });
+                    _focusNode.requestFocus();
+                  },
+                ),
+                const SizedBox(height: 8),
+                _ModeSelector(
+                  selected: _mode,
+                  onSelected: (GameMode mode) {
+                    _sfx.play(GameSfx.swoosh);
+                    setState(() {
+                      _mode = mode;
+                    });
+                    _focusNode.requestFocus();
+                  },
+                ),
+                const SizedBox(height: 6),
+                IgnorePointer(
+                  child: Text(
+                    _mode.subtitle,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: GameColors.brandNavy,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
                 IgnorePointer(
                   child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 22,
+                      vertical: 10,
+                    ),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF142042).withValues(alpha: 0.78),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.35),
-                        width: 2,
-                      ),
+                      color: GameColors.brandNavy,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0xFF0A1B36),
+                          offset: Offset(0, 4),
+                        ),
+                      ],
                     ),
                     child: const Text(
                       'TAP OR PRESS SPACE TO FLY',
                       style: TextStyle(
                         color: Colors.white,
-                        fontSize: 15,
+                        fontSize: 13.5,
                         fontWeight: FontWeight.w800,
-                        letterSpacing: 1.4,
+                        letterSpacing: 1.3,
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 14),
-                _DifficultySelector(
-                  selected: _difficulty,
-                  onSelected: (DifficultyMode mode) {
-                    _sfx.play(GameSfx.swoosh);
-                    setState(() {
-                      _difficulty = mode;
-                    });
-                    _focusNode.requestFocus();
-                  },
                 ),
               ],
             ),
@@ -724,35 +1409,49 @@ class _FlappyGameScreenState extends State<FlappyGameScreen>
 
   Widget _buildPausedOverlay() {
     return Container(
-      color: Colors.black.withValues(alpha: 0.45),
+      color: GameColors.brandNavy.withValues(alpha: 0.36),
       alignment: Alignment.center,
-      child: _RetroPanel(
-        width: 290,
+      child: _Modern3DCard(
+        width: 306,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const _OutlinedText(
-              text: 'PAUSED',
-              fontSize: 30,
-              strokeWidth: 5,
-              fillColor: Colors.white,
+            const Text(
+              "Let's Play With 2130 Group",
+              style: TextStyle(
+                color: GameColors.accentSky,
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.8,
+              ),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'Game Paused',
+              style: TextStyle(
+                color: GameColors.brandNavy,
+                fontSize: 24,
+                fontWeight: FontWeight.w900,
+              ),
             ),
             const SizedBox(height: 20),
             Row(
               children: [
                 Expanded(
-                  child: _RetroButton(
-                    label: 'RESUME',
-                    color: GameColors.pipeMain,
+                  child: _TactileButton(
+                    label: 'Resume',
+                    color: GameColors.pipeMid,
+                    shadowColor: GameColors.pipeShadowRight,
                     onPressed: _togglePause,
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: _RetroButton(
-                    label: 'RESTART',
-                    color: GameColors.accentOrange,
-                    onPressed: _resetToReady,
+                  child: _TactileButton(
+                    label: 'Restart',
+                    color: GameColors.accentCoral,
+                    shadowColor: GameColors.accentCoralDark,
+                    onPressed: _startNewRunImmediately,
                   ),
                 ),
               ],
@@ -764,9 +1463,11 @@ class _FlappyGameScreenState extends State<FlappyGameScreen>
   }
 
   Widget _buildGameOverOverlay() {
-    final MedalTier medal = MedalTier.fromScore(_score);
+    final MedalTier medal = MedalTierConfig.fromScore(_score);
+    final bool showNewFlag = _mode.isDaily ? _isNewDailyBest : _isNewBest;
+
     return Container(
-      color: Colors.black.withValues(alpha: 0.35),
+      color: GameColors.brandNavy.withValues(alpha: 0.34),
       alignment: Alignment.center,
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(
@@ -774,47 +1475,69 @@ class _FlappyGameScreenState extends State<FlappyGameScreen>
         children: [
           const _OutlinedText(
             text: 'GAME OVER',
-            fontSize: 42,
+            fontSize: 40,
             strokeWidth: 7,
-            fillColor: Color(0xFFFFA036),
+            fillColor: GameColors.scoreRed,
+            strokeColor: Colors.white,
           ),
-          const SizedBox(height: 18),
-          _RetroPanel(
-            width: 320,
+          const SizedBox(height: 16),
+          _Modern3DCard(
+            width: 348,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      _mode.isDaily
+                          ? 'Daily · ${_dailyCourse.title}'
+                          : '${_mode.label} · ${_birdSkin.label}',
+                      style: const TextStyle(
+                        color: GameColors.accentSky,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const Text(
+                      '2130 Group',
+                      style: TextStyle(
+                        color: Color(0xFF64748B),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    // Medal slot
                     Column(
                       children: [
                         const Text(
                           'MEDAL',
                           style: TextStyle(
-                            color: Color(0xFF9E6B43),
-                            fontSize: 12,
+                            color: Color(0xFF64748B),
+                            fontSize: 11,
                             fontWeight: FontWeight.w800,
-                            letterSpacing: 1.2,
+                            letterSpacing: 1.1,
                           ),
                         ),
                         const SizedBox(height: 8),
                         _MedalBadge(tier: medal),
                         const SizedBox(height: 6),
                         Text(
-                          medal == MedalTier.none ? '—' : medal.label,
+                          medal.label,
                           style: const TextStyle(
-                            color: GameColors.panelBorder,
+                            color: GameColors.brandNavy,
                             fontSize: 11,
                             fontWeight: FontWeight.w800,
-                            letterSpacing: 0.8,
                           ),
                         ),
                       ],
                     ),
                     const SizedBox(width: 24),
-                    // Score & Best columns
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.end,
@@ -822,24 +1545,26 @@ class _FlappyGameScreenState extends State<FlappyGameScreen>
                           const Text(
                             'SCORE',
                             style: TextStyle(
-                              color: Color(0xFF9E6B43),
-                              fontSize: 12,
+                              color: Color(0xFF64748B),
+                              fontSize: 11,
                               fontWeight: FontWeight.w800,
-                              letterSpacing: 1.2,
+                              letterSpacing: 1.1,
                             ),
                           ),
-                          const SizedBox(height: 2),
-                          _OutlinedText(
-                            text: '$_score',
-                            fontSize: 30,
-                            strokeWidth: 4.5,
-                            fillColor: Colors.white,
+                          Text(
+                            '$_score',
+                            style: const TextStyle(
+                              color: GameColors.brandNavy,
+                              fontSize: 32,
+                              fontWeight: FontWeight.w900,
+                              height: 1.1,
+                            ),
                           ),
-                          const SizedBox(height: 12),
+                          const SizedBox(height: 10),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.end,
                             children: [
-                              if (_isNewBest)
+                              if (showNewFlag)
                                 Container(
                                   margin: const EdgeInsets.only(right: 6),
                                   padding: const EdgeInsets.symmetric(
@@ -847,37 +1572,87 @@ class _FlappyGameScreenState extends State<FlappyGameScreen>
                                     vertical: 2,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFFE03A24),
-                                    borderRadius: BorderRadius.circular(3),
+                                    color: GameColors.accentCoral,
+                                    borderRadius: BorderRadius.circular(4),
                                   ),
-                                  child: const Text(
-                                    'NEW',
-                                    style: TextStyle(
+                                  child: Text(
+                                    _mode.isDaily ? 'NEW DAILY BEST' : 'NEW',
+                                    style: const TextStyle(
                                       color: Colors.white,
                                       fontSize: 10,
                                       fontWeight: FontWeight.w900,
                                     ),
                                   ),
                                 ),
-                              const Text(
-                                'BEST',
-                                style: TextStyle(
-                                  color: Color(0xFF9E6B43),
-                                  fontSize: 12,
+                              Text(
+                                _mode.isDaily ? 'DAILY BEST' : 'BEST',
+                                style: const TextStyle(
+                                  color: Color(0xFF64748B),
+                                  fontSize: 11,
                                   fontWeight: FontWeight.w800,
-                                  letterSpacing: 1.2,
+                                  letterSpacing: 1.1,
                                 ),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 2),
-                          _OutlinedText(
-                            text: '$_bestScore',
-                            fontSize: 30,
-                            strokeWidth: 4.5,
-                            fillColor: Colors.white,
+                          Text(
+                            '${_mode.isDaily ? _dailyStorage.bestScore : _bestScore}',
+                            style: const TextStyle(
+                              color: GameColors.brandNavy,
+                              fontSize: 28,
+                              fontWeight: FontWeight.w900,
+                              height: 1.1,
+                            ),
                           ),
+                          if (_mode.isDaily && _dailyRank != null) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              "Today's Rank · #$_dailyRank",
+                              style: const TextStyle(
+                                color: Color(0xFFB45309),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ],
+                          if (_mode.heartsEnabled) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              'Hearts Collected · $_heartsCollected',
+                              style: const TextStyle(
+                                color: GameColors.heartRed,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
                         ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 18),
+                Row(
+                  children: [
+                    if (_mode.isDaily) ...[
+                      Expanded(
+                        child: _TactileButton(
+                          label: 'Daily Board',
+                          color: GameColors.accentGold,
+                          shadowColor: const Color(0xFFB45309),
+                          onPressed: () {
+                            setState(() => _showLeaderboard = true);
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                    ],
+                    Expanded(
+                      child: _TactileButton(
+                        label: 'Play Again',
+                        color: GameColors.accentCoral,
+                        shadowColor: GameColors.accentCoralDark,
+                        onPressed: _startNewRunImmediately,
                       ),
                     ),
                   ],
@@ -885,16 +1660,243 @@ class _FlappyGameScreenState extends State<FlappyGameScreen>
               ],
             ),
           ),
-          const SizedBox(height: 18),
-          SizedBox(
-            width: 220,
-            child: _RetroButton(
-              label: 'PLAY AGAIN',
-              color: GameColors.accentOrange,
-              onPressed: _resetToReady,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDailyLeaderboardModal() {
+    final List<DailyLeaderboardRow> rows =
+        DailyChallengeService.buildLeaderboard(_dailyStorage);
+
+    return GestureDetector(
+      onTap: () => setState(() => _showLeaderboard = false),
+      child: Container(
+        color: GameColors.brandNavy.withValues(alpha: 0.45),
+        alignment: Alignment.center,
+        padding: const EdgeInsets.all(16),
+        child: GestureDetector(
+          onTap: () {},
+          child: _Modern3DCard(
+            width: 380,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'DAILY CHALLENGE · ${_dailyCourse.dateKey}',
+                            style: const TextStyle(
+                              color: GameColors.accentGold,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 1.0,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            _dailyCourse.title,
+                            style: const TextStyle(
+                              color: GameColors.brandNavy,
+                              fontSize: 20,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Resets in $_resetCountdown · ${_dailyStorage.attempts} ${_dailyStorage.attempts == 1 ? 'attempt' : 'attempts'} today',
+                            style: const TextStyle(
+                              color: Color(0xFF64748B),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () =>
+                          setState(() => _showLeaderboard = false),
+                      icon: const Icon(
+                        Icons.close_rounded,
+                        color: GameColors.brandNavy,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 260),
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: rows.length,
+                    separatorBuilder: (_, _) => const SizedBox(height: 8),
+                    itemBuilder: (BuildContext context, int index) {
+                      final DailyLeaderboardRow row = rows[index];
+                      final Color bg = row.isPlayerBest
+                          ? const Color(0xFFFEF3C7)
+                          : row.isPlayer
+                              ? const Color(0xFFE0F2FE)
+                              : const Color(0xFFF8FAFC);
+                      final Color border = row.isPlayerBest
+                          ? GameColors.accentGold
+                          : row.isPlayer
+                              ? GameColors.accentSky
+                              : const Color(0xFFE2E8F0);
+                      final Color badgeBg = switch (row.rank) {
+                        1 => GameColors.accentGold,
+                        2 => const Color(0xFF94A3B8),
+                        3 => const Color(0xFFCD7F32),
+                        _ => const Color(0xFFE2E8F0),
+                      };
+                      return Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                        decoration: BoxDecoration(
+                          color: bg,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: border),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 28,
+                              height: 28,
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                color: badgeBg,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                '#${row.rank}',
+                                style: TextStyle(
+                                  color: row.rank <= 3
+                                      ? Colors.white
+                                      : const Color(0xFF475569),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    row.name,
+                                    style: const TextStyle(
+                                      color: GameColors.brandNavy,
+                                      fontSize: 12.5,
+                                      fontWeight: FontWeight.w900,
+                                    ),
+                                  ),
+                                  Text(
+                                    row.subtitle,
+                                    style: const TextStyle(
+                                      color: Color(0xFF64748B),
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Text(
+                              '${row.score}',
+                              style: const TextStyle(
+                                color: GameColors.brandNavy,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 14),
+                _TactileButton(
+                  label: _mode.isDaily ? 'Keep Playing' : 'Play Daily Challenge',
+                  color: GameColors.accentGold,
+                  shadowColor: const Color(0xFFB45309),
+                  onPressed: () {
+                    setState(() => _showLeaderboard = false);
+                    if (!_mode.isDaily) {
+                      _mode = GameMode.dailyChallenge;
+                      _startNewRunImmediately();
+                    }
+                  },
+                ),
+              ],
             ),
           ),
-        ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DailyBoardPillButton extends StatelessWidget {
+  const _DailyBoardPillButton({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white.withValues(alpha: 0.94),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: GameColors.panelBorder.withValues(alpha: 0.2),
+          width: 1.5,
+        ),
+      ),
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          height: 44,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x1E0F2744),
+                offset: Offset(0, 3),
+              ),
+            ],
+          ),
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.emoji_events_rounded,
+                color: GameColors.accentGold,
+                size: 20,
+              ),
+              SizedBox(width: 6),
+              Text(
+                'Daily Board',
+                style: TextStyle(
+                  color: GameColors.brandNavy,
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -906,27 +1908,28 @@ class _OutlinedText extends StatelessWidget {
     required this.fontSize,
     required this.strokeWidth,
     required this.fillColor,
+    required this.strokeColor,
   });
 
   final String text;
   final double fontSize;
   final double strokeWidth;
   final Color fillColor;
+  final Color strokeColor;
 
   @override
   Widget build(BuildContext context) {
     final TextStyle base = TextStyle(
       fontSize: fontSize,
       fontWeight: FontWeight.w900,
-      letterSpacing: 1.5,
+      letterSpacing: 1.4,
       height: 1.05,
     );
 
     return Stack(
       children: [
-        // Drop shadow
         Transform.translate(
-          offset: const Offset(0, 3),
+          offset: const Offset(0, 4),
           child: Text(
             text,
             textAlign: TextAlign.center,
@@ -935,11 +1938,10 @@ class _OutlinedText extends StatelessWidget {
                 ..style = PaintingStyle.stroke
                 ..strokeWidth = strokeWidth
                 ..strokeJoin = StrokeJoin.round
-                ..color = const Color(0xFF0A0F1F).withValues(alpha: 0.75),
+                ..color = const Color(0xFF0E2544).withValues(alpha: 0.28),
             ),
           ),
         ),
-        // Crisp black outline
         Text(
           text,
           textAlign: TextAlign.center,
@@ -948,10 +1950,9 @@ class _OutlinedText extends StatelessWidget {
               ..style = PaintingStyle.stroke
               ..strokeWidth = strokeWidth
               ..strokeJoin = StrokeJoin.round
-              ..color = const Color(0xFF141414),
+              ..color = strokeColor,
           ),
         ),
-        // Fill
         Text(
           text,
           textAlign: TextAlign.center,
@@ -962,7 +1963,7 @@ class _OutlinedText extends StatelessWidget {
   }
 }
 
-class _HudIconButton extends StatelessWidget {
+class _HudIconButton extends StatefulWidget {
   const _HudIconButton({
     required this.tooltip,
     required this.icon,
@@ -974,28 +1975,80 @@ class _HudIconButton extends StatelessWidget {
   final VoidCallback onPressed;
 
   @override
+  State<_HudIconButton> createState() => _HudIconButtonState();
+}
+
+class _HudIconButtonState extends State<_HudIconButton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 220),
+  );
+
+  late final Animation<double> _scale = TweenSequence<double>([
+    TweenSequenceItem(
+      tween: Tween(begin: 1.0, end: 0.88)
+          .chain(CurveTween(curve: Curves.easeOut)),
+      weight: 30,
+    ),
+    TweenSequenceItem(
+      tween: Tween(begin: 0.88, end: 1.14)
+          .chain(CurveTween(curve: Curves.easeOut)),
+      weight: 38,
+    ),
+    TweenSequenceItem(
+      tween: Tween(begin: 1.14, end: 1.0)
+          .chain(CurveTween(curve: Curves.easeInOut)),
+      weight: 32,
+    ),
+  ]).animate(_controller);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _handleTap() {
+    _controller.forward(from: 0.0);
+    widget.onPressed();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Tooltip(
-      message: tooltip,
-      child: Material(
-        color: const Color(0xFF142042).withValues(alpha: 0.78),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-          side: BorderSide(
-            color: Colors.white.withValues(alpha: 0.35),
-            width: 2,
+    return ScaleTransition(
+      scale: _scale,
+      child: Tooltip(
+        message: widget.tooltip,
+        child: Material(
+          color: Colors.white.withValues(alpha: 0.94),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(
+              color: GameColors.panelBorder.withValues(alpha: 0.2),
+              width: 1.5,
+            ),
           ),
-        ),
-        child: InkWell(
-          onTap: onPressed,
-          borderRadius: BorderRadius.circular(8),
-          child: SizedBox(
-            width: 44,
-            height: 44,
-            child: Icon(
-              icon,
-              color: Colors.white,
-              size: 24,
+          child: InkWell(
+            onTap: _handleTap,
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x1E0F2744),
+                    offset: Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: Icon(
+                widget.icon,
+                color: GameColors.brandNavy,
+                size: 24,
+              ),
             ),
           ),
         ),
@@ -1004,51 +2057,128 @@ class _HudIconButton extends StatelessWidget {
   }
 }
 
-class _DifficultySelector extends StatelessWidget {
-  const _DifficultySelector({
+class _BirdSkinSelector extends StatelessWidget {
+  const _BirdSkinSelector({
     required this.selected,
     required this.onSelected,
   });
 
-  final DifficultyMode selected;
-  final ValueChanged<DifficultyMode> onSelected;
+  final BirdSkin selected;
+  final ValueChanged<BirdSkin> onSelected;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: const Color(0xFF142042).withValues(alpha: 0.85),
-        borderRadius: BorderRadius.circular(8),
+        color: Colors.white.withValues(alpha: 0.92),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: Colors.white.withValues(alpha: 0.3),
-          width: 2,
+          color: GameColors.panelBorder.withValues(alpha: 0.18),
+          width: 1.5,
         ),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x220F2744),
+            offset: Offset(0, 4),
+          ),
+        ],
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: DifficultyMode.values.map((DifficultyMode mode) {
-          final bool active = mode == selected;
-          return Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 2),
-            child: Material(
-              color: active ? GameColors.accentGold : Colors.transparent,
-              borderRadius: BorderRadius.circular(5),
-              child: InkWell(
-                onTap: () => onSelected(mode),
-                borderRadius: BorderRadius.circular(5),
-                child: Container(
-                  constraints: const BoxConstraints(minHeight: 40, minWidth: 74),
-                  alignment: Alignment.center,
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: Text(
-                    mode.label.toUpperCase(),
-                    style: TextStyle(
-                      color: active ? const Color(0xFF141414) : Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 1.0,
+      child: Wrap(
+        alignment: WrapAlignment.center,
+        spacing: 4,
+        runSpacing: 4,
+        children: BirdSkin.values.map((BirdSkin skin) {
+          final bool active = skin == selected;
+          return Material(
+            color: active ? GameColors.brandNavy : Colors.transparent,
+            borderRadius: BorderRadius.circular(10),
+            child: InkWell(
+              onTap: () => onSelected(skin),
+              borderRadius: BorderRadius.circular(10),
+              child: Container(
+                constraints: const BoxConstraints(minHeight: 40),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SizedBox(
+                      width: 32,
+                      height: 28,
+                      child: CustomPaint(
+                        painter: BirdPreviewPainter(skin: skin),
+                      ),
                     ),
+                    const SizedBox(width: 6),
+                    Text(
+                      skin.label,
+                      style: TextStyle(
+                        color: active ? Colors.white : GameColors.brandNavy,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+}
+
+class _ModeSelector extends StatelessWidget {
+  const _ModeSelector({
+    required this.selected,
+    required this.onSelected,
+  });
+
+  final GameMode selected;
+  final ValueChanged<GameMode> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.92),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: GameColors.panelBorder.withValues(alpha: 0.18),
+          width: 1.5,
+        ),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x220F2744),
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Wrap(
+        alignment: WrapAlignment.center,
+        spacing: 4,
+        runSpacing: 4,
+        children: GameMode.values.map((GameMode mode) {
+          final bool active = mode == selected;
+          final Color activeColor =
+              mode.isDaily ? GameColors.accentGold : GameColors.accentSky;
+          return Material(
+            color: active ? activeColor : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+            child: InkWell(
+              onTap: () => onSelected(mode),
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                constraints: const BoxConstraints(minHeight: 40),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                child: Text(
+                  mode.label,
+                  style: TextStyle(
+                    color: active ? Colors.white : GameColors.brandNavy,
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
               ),
@@ -1060,8 +2190,8 @@ class _DifficultySelector extends StatelessWidget {
   }
 }
 
-class _RetroPanel extends StatelessWidget {
-  const _RetroPanel({
+class _Modern3DCard extends StatelessWidget {
+  const _Modern3DCard({
     required this.width,
     required this.child,
   });
@@ -1073,19 +2203,23 @@ class _RetroPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: width,
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
-        color: GameColors.panelBg,
-        borderRadius: BorderRadius.circular(10),
+        color: GameColors.panelSurface,
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: GameColors.panelBorder,
-          width: 3.5,
+          color: GameColors.panelBorder.withValues(alpha: 0.2),
+          width: 2,
         ),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x88000000),
-            offset: Offset(0, 6),
-            blurRadius: 0,
+            color: Color(0x400F2744),
+            offset: Offset(0, 7),
+          ),
+          BoxShadow(
+            color: Color(0x280F2744),
+            blurRadius: 24,
+            offset: Offset(0, 14),
           ),
         ],
       ),
@@ -1094,38 +2228,36 @@ class _RetroPanel extends StatelessWidget {
   }
 }
 
-class _RetroButton extends StatelessWidget {
-  const _RetroButton({
+class _TactileButton extends StatelessWidget {
+  const _TactileButton({
     required this.label,
     required this.color,
+    required this.shadowColor,
     required this.onPressed,
   });
 
   final String label;
   final Color color;
+  final Color shadowColor;
   final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
     return Material(
       color: color,
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(14),
       child: InkWell(
         onTap: onPressed,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(14),
         child: Container(
           height: 48,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: const Color(0xFF141414),
-              width: 3,
-            ),
-            boxShadow: const [
+            borderRadius: BorderRadius.circular(14),
+            boxShadow: [
               BoxShadow(
-                color: Color(0x55000000),
-                offset: Offset(0, 3),
+                color: shadowColor,
+                offset: const Offset(0, 4),
               ),
             ],
           ),
@@ -1133,9 +2265,9 @@ class _RetroButton extends StatelessWidget {
             label,
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 16,
+              fontSize: 15.5,
               fontWeight: FontWeight.w900,
-              letterSpacing: 1.4,
+              letterSpacing: 0.5,
             ),
           ),
         ),
@@ -1155,34 +2287,40 @@ class _MedalBadge extends StatelessWidget {
     final Color shine;
     switch (tier) {
       case MedalTier.none:
-        fill = GameColors.panelInner;
-        shine = GameColors.panelInner;
+        fill = const Color(0xFFE2E8F0);
+        shine = const Color(0xFFE2E8F0);
       case MedalTier.bronze:
         fill = const Color(0xFFCD7F32);
         shine = const Color(0xFFE7A96D);
       case MedalTier.silver:
-        fill = const Color(0xFFC0C8D4);
-        shine = const Color(0xFFF0F4F8);
+        fill = const Color(0xFFB8C2CE);
+        shine = const Color(0xFFF1F5F9);
       case MedalTier.gold:
-        fill = const Color(0xFFF8C61E);
-        shine = const Color(0xFFFFF099);
+        fill = const Color(0xFFF59E0B);
+        shine = const Color(0xFFFDE68A);
       case MedalTier.platinum:
-        fill = const Color(0xFF9BE7FF);
+        fill = const Color(0xFF38BDF8);
         shine = Colors.white;
     }
 
     return Container(
-      width: 58,
-      height: 58,
+      width: 62,
+      height: 62,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: fill,
         border: Border.all(
           color: tier == MedalTier.none
-              ? const Color(0xFFB5AA64)
-              : const Color(0xFF543847),
-          width: 3,
+              ? const Color(0xFFCBD5E1)
+              : GameColors.brandNavy.withValues(alpha: 0.28),
+          width: 2.5,
         ),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x260F2744),
+            offset: Offset(0, 4),
+          ),
+        ],
         gradient: tier == MedalTier.none
             ? null
             : LinearGradient(
@@ -1192,7 +2330,11 @@ class _MedalBadge extends StatelessWidget {
               ),
       ),
       child: tier == MedalTier.none
-          ? null
+          ? const Icon(
+              Icons.emoji_events_outlined,
+              color: Color(0xFF94A3B8),
+              size: 28,
+            )
           : const Icon(
               Icons.star_rounded,
               color: Colors.white,

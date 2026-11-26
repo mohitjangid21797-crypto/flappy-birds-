@@ -18,21 +18,21 @@
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="Retro starry-night Flappy Bird arcade game built with Flutter.">
-  <meta property="og:title" content="Flappy Bird — Flutter Arcade">
-  <meta property="og:description" content="Retro starry-night Flappy Bird arcade game built with Flutter.">
+  <meta name="description" content="Let's Play With 2130 Group — Daytime pastel Flappy Bird arcade game built with Flutter.">
+  <meta property="og:title" content="Flappy Bird — 2130 Group">
+  <meta property="og:description" content="Let's Play With 2130 Group — Daytime pastel Flappy Bird arcade game built with Flutter.">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="Flappy Bird">
+  <meta name="apple-mobile-web-app-title" content="Flappy Bird 2130">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <title>Flappy Bird — Flutter Arcade</title>
+  <title>Flappy Bird — Let's Play With 2130 Group</title>
   <link rel="manifest" href="manifest.json">
 </head>
 <body>
@@ -61,9 +61,9 @@
 
         if (type === 'flap') {
           osc.type = 'sine';
-          osc.frequency.setValueAtTime(340, now);
-          osc.frequency.exponentialRampToValueAtTime(580, now + 0.08);
-          gain.gain.setValueAtTime(0.12, now);
+          osc.frequency.setValueAtTime(360, now);
+          osc.frequency.exponentialRampToValueAtTime(620, now + 0.08);
+          gain.gain.setValueAtTime(0.11, now);
           gain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
           osc.start(now);
           osc.stop(now + 0.09);
@@ -71,15 +71,33 @@
           osc.type = 'square';
           osc.frequency.setValueAtTime(660, now);
           osc.frequency.setValueAtTime(990, now + 0.06);
-          gain.gain.setValueAtTime(0.08, now);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.19);
+          gain.gain.setValueAtTime(0.07, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
           osc.start(now);
-          osc.stop(now + 0.19);
+          osc.stop(now + 0.18);
+        } else if (type === 'heart') {
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(523, now);
+          osc.frequency.setValueAtTime(659, now + 0.06);
+          osc.frequency.setValueAtTime(784, now + 0.12);
+          osc.frequency.setValueAtTime(1046, now + 0.18);
+          gain.gain.setValueAtTime(0.13, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
+          osc.start(now);
+          osc.stop(now + 0.28);
+        } else if (type === 'shield') {
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(480, now);
+          osc.frequency.exponentialRampToValueAtTime(220, now + 0.2);
+          gain.gain.setValueAtTime(0.12, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+          osc.start(now);
+          osc.stop(now + 0.22);
         } else if (type === 'hit') {
           osc.type = 'sawtooth';
           osc.frequency.setValueAtTime(170, now);
           osc.frequency.exponentialRampToValueAtTime(48, now + 0.16);
-          gain.gain.setValueAtTime(0.16, now);
+          gain.gain.setValueAtTime(0.15, now);
           gain.gain.exponentialRampToValueAtTime(0.001, now + 0.17);
           osc.start(now);
           osc.stop(now + 0.17);
@@ -114,6 +132,20 @@
       window.flappySetBestScore = function (score) {
         try {
           window.localStorage.setItem('flappy_best_score', String(score));
+        } catch (e) {}
+      };
+
+      window.flappyGetDailyBoard = function () {
+        try {
+          return window.localStorage.getItem('flappy_daily_leaderboard_v1');
+        } catch (e) {
+          return null;
+        }
+      };
+
+      window.flappySetDailyBoard = function (json) {
+        try {
+          window.localStorage.setItem('flappy_daily_leaderboard_v1', json);
         } catch (e) {}
       };
     })();

@@ -9,12 +9,16 @@ external int? _jsGetBestScore();
 @JS('flappySetBestScore')
 external void _jsSetBestScore(int score);
 
+@JS('flappyGetDailyBoard')
+external String? _jsGetDailyBoard();
+
+@JS('flappySetDailyBoard')
+external void _jsSetDailyBoard(JSString json);
+
 void playWebSfx(String soundName) {
   try {
     _jsPlayFlappySfx(soundName.toJS);
-  } catch (_) {
-    // Ignore audio context errors before user interaction.
-  }
+  } catch (_) {}
 }
 
 int? readWebBestScore() {
@@ -28,7 +32,19 @@ int? readWebBestScore() {
 void writeWebBestScore(int score) {
   try {
     _jsSetBestScore(score);
+  } catch (_) {}
+}
+
+String? readWebDailyBoard() {
+  try {
+    return _jsGetDailyBoard();
   } catch (_) {
-    // Ignore storage quota or sandbox errors.
+    return null;
   }
+}
+
+void writeWebDailyBoard(String json) {
+  try {
+    _jsSetDailyBoard(json.toJS);
+  } catch (_) {}
 }

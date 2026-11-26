@@ -1,11 +1,11 @@
 {
-    "name": "Flappy Bird",
-    "short_name": "Flappy Bird",
+    "name": "Flappy Bird — 2130 Group",
+    "short_name": "Flappy 2130",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#162246",
-    "theme_color": "#162246",
-    "description": "Retro starry-night Flappy Bird arcade game built with Flutter.",
+    "background_color": "#5ECDF9",
+    "theme_color": "#5ECDF9",
+    "description": "Let's Play With 2130 Group — Daytime pastel Flappy Bird arcade game built with Flutter.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

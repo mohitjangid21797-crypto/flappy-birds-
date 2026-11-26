@@ -13,16 +13,16 @@ class FlappyBirdApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flappy Bird',
+      title: 'Flappy Bird — 2130 Group',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
-          seedColor: GameColors.pipeMain,
-          brightness: Brightness.dark,
+          seedColor: GameColors.skyTop,
+          brightness: Brightness.light,
         ),
         useMaterial3: true,
       ),
-      home: const FlappyGameScreen(),
+      home: const FlappyGameScreen(key: ValueKey('flappy_2130_v4')),
     );
   }
 }

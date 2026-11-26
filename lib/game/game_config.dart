@@ -1,79 +1,194 @@
 import 'dart:ui';
 
-enum DifficultyMode {
-  chill('Chill', 165.0, 178.0, 290.0),
-  classic('Classic', 210.0, 150.0, 255.0),
-  turbo('Turbo', 265.0, 136.0, 232.0);
+enum GameMode {
+  heartRun,
+  dailyChallenge,
+  classic,
+  speedUp,
+}
 
-  const DifficultyMode(
-    this.label,
-    this.pipeSpeed,
-    this.pipeGap,
-    this.pipeSpacing,
-  );
+extension GameModeConfig on GameMode {
+  String get label => switch (this) {
+        GameMode.heartRun => 'Heart Run',
+        GameMode.dailyChallenge => 'Daily Challenge',
+        GameMode.classic => 'Classic',
+        GameMode.speedUp => 'Speed Up',
+      };
 
-  final String label;
-  final double pipeSpeed;
-  final double pipeGap;
-  final double pipeSpacing;
+  String get subtitle => switch (this) {
+        GameMode.heartRun =>
+          '3D moving gates & collectible hearts for extra shield lives',
+        GameMode.dailyChallenge =>
+          'Fixed 24h obstacle layout · Compete for the daily leaderboard',
+        GameMode.classic => 'Pure 1-life arcade run through 3D sky pillars',
+        GameMode.speedUp =>
+          'Speed ramps up with every point + collectible shield hearts',
+      };
+
+  double get pipeSpeed => switch (this) {
+        GameMode.heartRun => 215.0,
+        GameMode.dailyChallenge => 220.0,
+        GameMode.classic => 220.0,
+        GameMode.speedUp => 210.0,
+      };
+
+  double get pipeGap => switch (this) {
+        GameMode.heartRun => 156.0,
+        GameMode.dailyChallenge => 148.0,
+        GameMode.classic => 148.0,
+        GameMode.speedUp => 152.0,
+      };
+
+  double get pipeSpacing => switch (this) {
+        GameMode.heartRun => 268.0,
+        GameMode.dailyChallenge => 256.0,
+        GameMode.classic => 256.0,
+        GameMode.speedUp => 262.0,
+      };
+
+  bool get heartsEnabled => switch (this) {
+        GameMode.heartRun => true,
+        GameMode.dailyChallenge => true,
+        GameMode.classic => false,
+        GameMode.speedUp => true,
+      };
+
+  bool get accelerates => switch (this) {
+        GameMode.heartRun => false,
+        GameMode.dailyChallenge => false,
+        GameMode.classic => false,
+        GameMode.speedUp => true,
+      };
+
+  bool get isDaily => this == GameMode.dailyChallenge;
+}
+
+enum BirdSkin {
+  skyCap,
+  solarAce,
+  emeraldJet,
+}
+
+extension BirdSkinConfig on BirdSkin {
+  String get label => switch (this) {
+        BirdSkin.skyCap => 'Sky Cap',
+        BirdSkin.solarAce => 'Solar Ace',
+        BirdSkin.emeraldJet => 'Emerald Jet',
+      };
+
+  Color get primaryLight => switch (this) {
+        BirdSkin.skyCap => const Color(0xFFA8ECFF),
+        BirdSkin.solarAce => const Color(0xFFFFF099),
+        BirdSkin.emeraldJet => const Color(0xFFA7F3D0),
+      };
+
+  Color get primaryMid => switch (this) {
+        BirdSkin.skyCap => const Color(0xFF42C2FA),
+        BirdSkin.solarAce => const Color(0xFFF59E0B),
+        BirdSkin.emeraldJet => const Color(0xFF10B981),
+      };
+
+  Color get primaryDark => switch (this) {
+        BirdSkin.skyCap => const Color(0xFF177BB8),
+        BirdSkin.solarAce => const Color(0xFFB45309),
+        BirdSkin.emeraldJet => const Color(0xFF047857),
+      };
+
+  Color get hatCrown => switch (this) {
+        BirdSkin.skyCap => const Color(0xFFA8703C),
+        BirdSkin.solarAce => const Color(0xFF334155),
+        BirdSkin.emeraldJet => const Color(0xFFB91C1C),
+      };
+
+  Color get hatShade => switch (this) {
+        BirdSkin.skyCap => const Color(0xFF6B411C),
+        BirdSkin.solarAce => const Color(0xFF1E293B),
+        BirdSkin.emeraldJet => const Color(0xFF7F1D1D),
+      };
+}
+
+enum ObstacleKind {
+  emeraldCylinder,
+  hoverPropellerGate,
+  beaconTower,
 }
 
 class GameColors {
-  static const Color skyTop = Color(0xFF162246);
-  static const Color skyMid = Color(0xFF23396D);
-  static const Color skyHorizon = Color(0xFF365794);
+  // Daytime Pastel Sky & Hills
+  static const Color skyTop = Color(0xFF56C8FA);
+  static const Color skyMid = Color(0xFF9EE3FD);
+  static const Color skyHorizon = Color(0xFFE5F8FF);
 
-  static const Color cloudDark = Color(0xFF47679A);
-  static const Color cloudLight = Color(0xFF5D80B6);
+  static const Color sunCore = Color(0xFFFFF8BA);
+  static const Color sunGlow = Color(0xFFFFE761);
 
-  static const Color cityBack = Color(0xFF2B4168);
-  static const Color cityFront = Color(0xFF37517C);
-  static const Color cityWindow = Color(0xFF4A699C);
+  static const Color cloudHalo = Color(0xFFB8E6FA);
+  static const Color cloudFill = Color(0xFFFFFFFF);
 
-  static const Color bushDark = Color(0xFF1F6623);
-  static const Color bushMid = Color(0xFF2F8E2E);
-  static const Color bushLight = Color(0xFF4AC03A);
+  static const Color hillBack = Color(0xFFFADDE6);
+  static const Color hillFront = Color(0xFFF5C3D3);
 
-  static const Color pipeBorder = Color(0xFF141414);
-  static const Color pipeHighlightBright = Color(0xFFC2FF74);
-  static const Color pipeHighlight = Color(0xFF9CE659);
-  static const Color pipeMain = Color(0xFF73BF2E);
-  static const Color pipeShadow = Color(0xFF558C22);
-  static const Color pipeShadowDeep = Color(0xFF3B6615);
+  // 3D Obstacle Palettes
+  static const Color pipeBorder = Color(0xFF1A2D0C);
+  static const Color pipeDarkEdge = Color(0xFF2B4D12);
+  static const Color pipeShadowLeft = Color(0xFF47721E);
+  static const Color pipeMid = Color(0xFF7FB836);
+  static const Color pipeSpecular = Color(0xFFDCFA8E);
+  static const Color pipeShadowRight = Color(0xFF365915);
 
-  static const Color groundBorder = Color(0xFF1B1B1B);
-  static const Color grassLight = Color(0xFF9CE659);
-  static const Color grassMain = Color(0xFF73BF2E);
-  static const Color grassDark = Color(0xFF558C22);
-  static const Color dirtLight = Color(0xFFE5DF9E);
-  static const Color dirtMain = Color(0xFFDAD28B);
-  static const Color dirtPebble = Color(0xFFC4B66A);
+  static const Color gateBlueDark = Color(0xFF1D4ED8);
+  static const Color gateBlueMid = Color(0xFF3B82F6);
+  static const Color gateBlueLight = Color(0xFF93C5FD);
+  static const Color gateGold = Color(0xFFFBBF24);
+  static const Color gateGoldDark = Color(0xFFB45309);
 
-  static const Color birdOutline = Color(0xFF141414);
-  static const Color birdHighlight = Color(0xFFFFEC70);
-  static const Color birdYellow = Color(0xFFF8C61E);
-  static const Color birdOrange = Color(0xFFE87818);
-  static const Color birdBeakTop = Color(0xFFF43814);
-  static const Color birdBeakBottom = Color(0xFFC81E0C);
-  static const Color birdWing = Color(0xFFFFFDF2);
-  static const Color birdWingShade = Color(0xFFE6DEC0);
+  static const Color towerCoralDark = Color(0xFF9F1239);
+  static const Color towerCoralMid = Color(0xFFE11D48);
+  static const Color towerCoralLight = Color(0xFFFDA4AF);
 
-  static const Color panelBg = Color(0xFFDED895);
-  static const Color panelBorder = Color(0xFF543847);
-  static const Color panelInner = Color(0xFFD0C67E);
-  static const Color accentGold = Color(0xFFF8C61E);
-  static const Color accentOrange = Color(0xFFE86101);
+  // Segmented Grass & Soil Tile Ground
+  static const Color groundDivider = Color(0xFF1A140E);
+  static const Color grassBright = Color(0xFF18CA00);
+  static const Color grassShadow = Color(0xFF0A8F00);
+  static const Color soilTop = Color(0xFF8C5D32);
+  static const Color soilMid = Color(0xFFCFA774);
+  static const Color soilBottom = Color(0xFF6B421D);
+  static const Color soilPebble = Color(0xFF472A10);
+
+  // Bird Common Accents
+  static const Color birdOutline = Color(0xFF141820);
+  static const Color birdBeakTop = Color(0xFFFFB424);
+  static const Color birdBeakBottom = Color(0xFFE26800);
+  static const Color hatBand = Color(0xFF281B12);
+
+  // Collectible Heart
+  static const Color heartBright = Color(0xFFFF8096);
+  static const Color heartRed = Color(0xFFE5253A);
+  static const Color heartDeep = Color(0xFF9E0F21);
+
+  // UI & Score Palette
+  static const Color scoreRed = Color(0xFFE53E3E);
+  static const Color panelSurface = Color(0xFFFCFDFF);
+  static const Color panelBorder = Color(0xFF1E3A5F);
+  static const Color accentCoral = Color(0xFFE53E3E);
+  static const Color accentCoralDark = Color(0xFFB91C1C);
+  static const Color accentSky = Color(0xFF0EA5E9);
+  static const Color accentSkyDark = Color(0xFF0369A1);
+  static const Color accentGold = Color(0xFFF59E0B);
+  static const Color brandNavy = Color(0xFF15325B);
 }
 
 class GamePhysics {
   static const double gravity = 1480.0;
-  static const double flapVelocity = -450.0;
+  static const double flapVelocity = -455.0;
   static const double maxFallSpeed = 620.0;
-  static const double groundHeight = 76.0;
-  static const double birdVisualWidth = 52.0;
-  static const double birdVisualHeight = 38.0;
-  static const double birdHitRadius = 15.5;
-  static const double pipeWidth = 70.0;
-  static const double pipeCapOverhang = 5.0;
+  static const double groundHeight = 82.0;
+  static const double birdVisualWidth = 58.0;
+  static const double birdVisualHeight = 48.0;
+  static const double birdHitRadius = 15.0;
+  static const double pipeWidth = 72.0;
+  static const double pipeCapOverhang = 6.0;
   static const double pipeCapHeight = 28.0;
+  static const double obstacle3dDepth = 12.0;
+  static const int maxHearts = 3;
 }
