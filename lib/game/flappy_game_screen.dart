@@ -1214,37 +1214,64 @@ class _FlappyGameScreenState extends State<FlappyGameScreen>
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
-                      "LET'S PLAY WITH 2130 GROUP",
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: GameColors.brandNavy,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 1.8,
-                        shadows: [
-                          Shadow(
-                            color: Colors.white.withValues(alpha: 0.9),
-                            blurRadius: 6,
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 46,
+                            height: 46,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(13),
+                              border: Border.all(
+                                color: Colors.white,
+                                width: 2,
+                              ),
+                              boxShadow: const [
+                                BoxShadow(
+                                  color: Color(0x420E2544),
+                                  offset: Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(11),
+                              child: Image.asset(
+                                'assets/images/app_logo.png',
+                                width: 42,
+                                height: 42,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) =>
+                                    const ColoredBox(
+                                  color: GameColors.skyTop,
+                                  child: Icon(
+                                    Icons.flutter_dash,
+                                    color: Colors.white,
+                                    size: 26,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          const _OutlinedText(
+                            text: 'FLAPPY BIRD',
+                            fontSize: 40,
+                            strokeWidth: 7,
+                            fillColor: GameColors.scoreRed,
+                            strokeColor: Colors.white,
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    const _OutlinedText(
-                      text: 'FLAPPY BIRD',
-                      fontSize: 44,
-                      strokeWidth: 7,
-                      fillColor: GameColors.scoreRed,
-                      strokeColor: Colors.white,
-                    ),
                     if (_bestScore > 0) ...[
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 6),
                       Text(
                         'All-Time Best · $_bestScore',
                         style: const TextStyle(
                           color: GameColors.brandNavy,
-                          fontSize: 14,
+                          fontSize: 13,
                           fontWeight: FontWeight.w800,
                         ),
                       ),
@@ -1416,16 +1443,6 @@ class _FlappyGameScreenState extends State<FlappyGameScreen>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
-              "Let's Play With 2130 Group",
-              style: TextStyle(
-                color: GameColors.accentSky,
-                fontSize: 12,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 0.8,
-              ),
-            ),
-            const SizedBox(height: 4),
             const Text(
               'Game Paused',
               style: TextStyle(

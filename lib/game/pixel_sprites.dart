@@ -55,7 +55,7 @@ class FlappyScenePainter extends CustomPainter {
 
     _drawDaySkyAndSun(canvas, size, groundTop);
     _drawClouds(canvas);
-    _drawAnimatedGroupBanner(canvas, size, groundTop);
+    _drawPdfAsciiWatermark(canvas, size, groundTop);
     _drawPastelHills(canvas, size, groundTop);
     _drawPipes3D(canvas, groundTop);
     _drawHearts3D(canvas);
@@ -171,78 +171,44 @@ class FlappyScenePainter extends CustomPainter {
     canvas.restore();
   }
 
-  void _drawAnimatedGroupBanner(Canvas canvas, Size size, double groundTop) {
-    const String label = "Let's Play With 2130 Group";
-    final double skyMidY = groundTop * 0.35;
-    final double bobY = math.sin(elapsedTime * 1.9) * 10.0;
+  static const String _pdfWatermarkText =
+      "  _          _   _         ____  _                         _ _   _     \n"
+      r" | |    ___ | |_( )___    |  _ \| | __ _ _   _  __      __(_) |_| |__  " "\n"
+      r" | |   / _ \| __|/ __|    | |_) | |/ _` | | | | \ \ /\ / /| | __| '_ \ " "\n"
+      r" | |__|  __/| |_ \__ \    |  __/| | (_| | |_| |  \ V  V / | | |_| | | |" "\n"
+      r" |_____\___|\___||___/    |_|   |_|\__,_|\__, |   \_/\_/  |_|\__|_| |_|" "\n"
+      " =======================================|___/==========================\n"
+      "                                                                       \n"
+      "        ____  _  _____   ___       ____ ____   ___  _   _ ____         \n"
+      r"       |___ \/ ||___ /  / _ \     / ___|  _ \ / _ \| | | |  _ \        " "\n"
+      r"         __) | |  |_ \ | | | |   | |  _| |_) | | | | | | | |_) |       " "\n"
+      r"        / __/| | ___) || |_| |   | |_| |  _ <| |_| | |_| |  __/        " "\n"
+      r"       |_____|_||____/  \___/     \____|_| \_\\___/ \___/|_|           " "\n"
+      "       =======================================================         ";
 
-    final double span = size.width + 540.0;
-    final double bannerX =
-        size.width + 270.0 - ((elapsedTime * 48.0 + worldScroll * 0.08) % span);
-    final double bannerY = skyMidY + bobY;
+  void _drawPdfAsciiWatermark(Canvas canvas, Size size, double groundTop) {
+    final double fontSize = ((size.width * 0.84) / 44.0).clamp(6.5, 13.5);
+    final double pulseAlpha = 0.16 + 0.025 * math.sin(elapsedTime * 1.4);
+
+    final TextPainter painter = TextPainter(
+      text: TextSpan(
+        text: _pdfWatermarkText,
+        style: TextStyle(
+          fontFamily: 'monospace',
+          fontSize: fontSize,
+          height: 1.18,
+          fontWeight: FontWeight.w700,
+          color: GameColors.brandNavy.withValues(alpha: pulseAlpha),
+        ),
+      ),
+      textAlign: TextAlign.left,
+      textDirection: TextDirection.ltr,
+    )..layout();
 
     canvas.save();
-    canvas.translate(bannerX, bannerY);
-
-    final double shimmer = 0.72 + 0.28 * math.sin(elapsedTime * 3.0);
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        const Rect.fromLTWH(-192, -23, 384, 46),
-        const Radius.circular(23),
-      ),
-      Paint()..color = Colors.white.withValues(alpha: 0.36 * shimmer),
-    );
-
-    final Paint sparklePaint = Paint()
-      ..color = GameColors.sunCore.withValues(alpha: 0.9 * shimmer);
-    for (final double dx in [-206.0, 206.0]) {
-      final double sy = math.sin(elapsedTime * 3.8 + dx) * 6.0;
-      canvas.drawCircle(Offset(dx, sy), 4.0, sparklePaint);
-      canvas.drawRect(
-        Rect.fromCenter(center: Offset(dx, sy), width: 14, height: 2.2),
-        sparklePaint,
-      );
-      canvas.drawRect(
-        Rect.fromCenter(center: Offset(dx, sy), width: 2.2, height: 14),
-        sparklePaint,
-      );
-    }
-
-    final TextPainter strokePainter = TextPainter(
-      text: TextSpan(
-        text: label,
-        style: TextStyle(
-          fontSize: 22,
-          fontWeight: FontWeight.w900,
-          letterSpacing: 0.8,
-          foreground: Paint()
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 4.5
-            ..strokeJoin = StrokeJoin.round
-            ..color = Colors.white.withValues(alpha: 0.8),
-        ),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
-
-    final TextPainter fillPainter = TextPainter(
-      text: TextSpan(
-        text: label,
-        style: TextStyle(
-          fontSize: 22,
-          fontWeight: FontWeight.w900,
-          letterSpacing: 0.8,
-          color: GameColors.brandNavy.withValues(alpha: 0.62),
-        ),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
-
-    final Offset textOffset =
-        Offset(-fillPainter.width / 2, -fillPainter.height / 2);
-    strokePainter.paint(canvas, textOffset);
-    fillPainter.paint(canvas, textOffset);
-
+    canvas.translate(size.width * 0.5, groundTop * 0.43);
+    canvas.rotate(-0.14);
+    painter.paint(canvas, Offset(-painter.width / 2, -painter.height / 2));
     canvas.restore();
   }
 

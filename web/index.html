@@ -50,73 +50,127 @@
         return audioCtx;
       }
 
+      var noiseBuffer = null;
+      function getNoiseBuffer(ctx) {
+        if (noiseBuffer && noiseBuffer.sampleRate === ctx.sampleRate) {
+          return noiseBuffer;
+        }
+        var len = Math.floor(ctx.sampleRate * 0.35);
+        var buf = ctx.createBuffer(1, len, ctx.sampleRate);
+        var data = buf.getChannelData(0);
+        for (var i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+        noiseBuffer = buf;
+        return buf;
+      }
+
+      function playNoise(ctx, start, dur, filterType, f1, f2, peak, q) {
+        var src = ctx.createBufferSource();
+        src.buffer = getNoiseBuffer(ctx);
+        var filter = ctx.createBiquadFilter();
+        filter.type = filterType;
+        filter.Q.setValueAtTime(q || 1.2, start);
+        filter.frequency.setValueAtTime(f1, start);
+        filter.frequency.exponentialRampToValueAtTime(Math.max(40, f2), start + dur);
+        var gain = ctx.createGain();
+        gain.gain.setValueAtTime(0.001, start);
+        gain.gain.linearRampToValueAtTime(peak, start + Math.min(0.014, dur * 0.28));
+        gain.gain.exponentialRampToValueAtTime(0.001, start + dur);
+        src.connect(filter);
+        filter.connect(gain);
+        gain.connect(ctx.destination);
+        src.start(start);
+        src.stop(start + dur);
+      }
+
+      function playBirdChirp(ctx, start, dur, f1, f2, f3, peak, wave, vibHz, vibDepth) {
+        var osc = ctx.createOscillator();
+        var gain = ctx.createGain();
+        osc.type = wave || 'sine';
+        var peakT = start + dur * 0.42;
+        osc.frequency.setValueAtTime(Math.max(40, f1), start);
+        osc.frequency.exponentialRampToValueAtTime(Math.max(40, f2), peakT);
+        osc.frequency.exponentialRampToValueAtTime(Math.max(40, f3), start + dur);
+
+        if (vibHz && vibDepth) {
+          var lfo = ctx.createOscillator();
+          var lfoGain = ctx.createGain();
+          lfo.type = 'sine';
+          lfo.frequency.setValueAtTime(vibHz, start);
+          lfoGain.gain.setValueAtTime(vibDepth, start);
+          lfo.connect(lfoGain);
+          lfoGain.connect(osc.frequency);
+          lfo.start(start);
+          lfo.stop(start + dur);
+        }
+
+        gain.gain.setValueAtTime(0.001, start);
+        gain.gain.linearRampToValueAtTime(peak, start + Math.min(0.012, dur * 0.25));
+        gain.gain.exponentialRampToValueAtTime(0.001, start + dur);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(start);
+        osc.stop(start + dur);
+      }
+
+      function playBirdSquawk(ctx, start, dur, f1, f2, peak) {
+        var osc = ctx.createOscillator();
+        var filter = ctx.createBiquadFilter();
+        var gain = ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(f1, start);
+        osc.frequency.exponentialRampToValueAtTime(Math.max(60, f1 * 1.18), start + dur * 0.22);
+        osc.frequency.exponentialRampToValueAtTime(Math.max(60, f2), start + dur);
+
+        filter.type = 'bandpass';
+        filter.Q.setValueAtTime(3.2, start);
+        filter.frequency.setValueAtTime(f1 * 1.65, start);
+        filter.frequency.exponentialRampToValueAtTime(Math.max(180, f2 * 1.4), start + dur);
+
+        gain.gain.setValueAtTime(0.001, start);
+        gain.gain.linearRampToValueAtTime(peak, start + 0.016);
+        gain.gain.exponentialRampToValueAtTime(0.001, start + dur);
+
+        osc.connect(filter);
+        filter.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(start);
+        osc.stop(start + dur);
+      }
+
       window.flappySfx = function (type) {
         var ctx = getCtx();
         if (!ctx) return;
         var now = ctx.currentTime;
-        var osc = ctx.createOscillator();
-        var gain = ctx.createGain();
-        osc.connect(gain);
-        gain.connect(ctx.destination);
+        var jitter = 0.95 + Math.random() * 0.1;
 
         if (type === 'flap') {
-          osc.type = 'sine';
-          osc.frequency.setValueAtTime(360, now);
-          osc.frequency.exponentialRampToValueAtTime(620, now + 0.08);
-          gain.gain.setValueAtTime(0.11, now);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
-          osc.start(now);
-          osc.stop(now + 0.09);
+          playNoise(ctx, now, 0.07, 'bandpass', 920, 2400, 0.065, 1.5);
+          playBirdChirp(ctx, now + 0.006, 0.085, 880 * jitter, 1680 * jitter, 1180 * jitter, 0.09, 'sine');
+          playBirdChirp(ctx, now + 0.01, 0.065, 1760 * jitter, 2450 * jitter, 1920 * jitter, 0.028, 'triangle');
         } else if (type === 'score') {
-          osc.type = 'square';
-          osc.frequency.setValueAtTime(660, now);
-          osc.frequency.setValueAtTime(990, now + 0.06);
-          gain.gain.setValueAtTime(0.07, now);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
-          osc.start(now);
-          osc.stop(now + 0.18);
+          playBirdChirp(ctx, now, 0.065, 1220, 1760, 1480, 0.085, 'sine');
+          playBirdChirp(ctx, now + 0.07, 0.13, 1480, 2220, 1980, 0.1, 'sine', 26, 35);
+          playBirdChirp(ctx, now + 0.072, 0.11, 2960, 3520, 3120, 0.025, 'triangle');
         } else if (type === 'heart') {
-          osc.type = 'triangle';
-          osc.frequency.setValueAtTime(523, now);
-          osc.frequency.setValueAtTime(659, now + 0.06);
-          osc.frequency.setValueAtTime(784, now + 0.12);
-          osc.frequency.setValueAtTime(1046, now + 0.18);
-          gain.gain.setValueAtTime(0.13, now);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
-          osc.start(now);
-          osc.stop(now + 0.28);
+          var notes = [1046.5, 1318.5, 1568.0, 2093.0];
+          for (var i = 0; i < notes.length; i++) {
+            var f = notes[i];
+            playBirdChirp(ctx, now + i * 0.048, 0.11, f * 0.9, f * 1.12, f, 0.08, 'sine', 28, 28);
+          }
         } else if (type === 'shield') {
-          osc.type = 'sawtooth';
-          osc.frequency.setValueAtTime(480, now);
-          osc.frequency.exponentialRampToValueAtTime(220, now + 0.2);
-          gain.gain.setValueAtTime(0.12, now);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
-          osc.start(now);
-          osc.stop(now + 0.22);
+          playNoise(ctx, now, 0.14, 'bandpass', 1700, 620, 0.075, 1.4);
+          playBirdSquawk(ctx, now, 0.14, 920, 540, 0.08);
+          playBirdChirp(ctx, now + 0.07, 0.14, 1180, 1860, 1520, 0.075, 'sine', 32, 40);
         } else if (type === 'hit') {
-          osc.type = 'sawtooth';
-          osc.frequency.setValueAtTime(170, now);
-          osc.frequency.exponentialRampToValueAtTime(48, now + 0.16);
-          gain.gain.setValueAtTime(0.15, now);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.17);
-          osc.start(now);
-          osc.stop(now + 0.17);
+          playNoise(ctx, now, 0.13, 'lowpass', 1650, 220, 0.16);
+          playBirdChirp(ctx, now, 0.14, 165, 120, 42, 0.18, 'sine');
+          playBirdSquawk(ctx, now + 0.01, 0.17, 740, 290, 0.13);
         } else if (type === 'die') {
-          osc.type = 'triangle';
-          osc.frequency.setValueAtTime(320, now + 0.05);
-          osc.frequency.exponentialRampToValueAtTime(110, now + 0.28);
-          gain.gain.setValueAtTime(0.1, now + 0.05);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.29);
-          osc.start(now + 0.05);
-          osc.stop(now + 0.29);
+          playBirdChirp(ctx, now + 0.03, 0.34, 1420, 1180, 290, 0.095, 'sine', 18, 55);
+          playBirdChirp(ctx, now + 0.35, 0.075, 520, 460, 260, 0.055, 'triangle');
         } else if (type === 'swoosh') {
-          osc.type = 'sine';
-          osc.frequency.setValueAtTime(240, now);
-          osc.frequency.exponentialRampToValueAtTime(420, now + 0.07);
-          gain.gain.setValueAtTime(0.06, now);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
-          osc.start(now);
-          osc.stop(now + 0.08);
+          playNoise(ctx, now, 0.1, 'bandpass', 520, 1950, 0.05, 1.3);
+          playBirdChirp(ctx, now + 0.01, 0.07, 920 * jitter, 1380 * jitter, 1140 * jitter, 0.048, 'sine');
         }
       };
 
@@ -132,20 +186,6 @@
       window.flappySetBestScore = function (score) {
         try {
           window.localStorage.setItem('flappy_best_score', String(score));
-        } catch (e) {}
-      };
-
-      window.flappyGetDailyBoard = function () {
-        try {
-          return window.localStorage.getItem('flappy_daily_leaderboard_v1');
-        } catch (e) {
-          return null;
-        }
-      };
-
-      window.flappySetDailyBoard = function (json) {
-        try {
-          window.localStorage.setItem('flappy_daily_leaderboard_v1', json);
         } catch (e) {}
       };
     })();

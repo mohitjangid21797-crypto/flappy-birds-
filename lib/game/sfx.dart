@@ -1,9 +1,6 @@
-import 'dart:convert';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
-import 'daily_challenge.dart';
 import 'sfx_stub.dart' if (dart.library.js_interop) 'sfx_web.dart';
 
 enum GameSfx {
@@ -44,12 +41,4 @@ class SoundController {
   int loadBestScore() => readWebBestScore() ?? 0;
 
   void saveBestScore(int score) => writeWebBestScore(score);
-
-  DailyChallengeStorage loadDailyStorage(String dateKey) {
-    return DailyChallengeStorage.fromRawJson(readWebDailyBoard(), dateKey);
-  }
-
-  void saveDailyStorage(DailyChallengeStorage storage) {
-    writeWebDailyBoard(jsonEncode(storage.toJson()));
-  }
 }

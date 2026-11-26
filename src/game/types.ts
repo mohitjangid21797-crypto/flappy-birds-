@@ -1,6 +1,6 @@
 export type GamePhase = 'ready' | 'playing' | 'paused' | 'dying' | 'gameOver';
 
-export type GameMode = 'heartRun' | 'dailyChallenge' | 'classic' | 'speedUp';
+export type GameMode = 'heartRun' | 'classic' | 'speedUp';
 
 export type BirdSkin = 'skyCap' | 'solarAce' | 'emeraldJet';
 
@@ -20,7 +20,6 @@ export interface ModeConfig {
   pipeSpacing: number;
   heartsEnabled: boolean;
   accelerates: boolean;
-  isDaily: boolean;
 }
 
 export const GAME_MODES: Record<GameMode, ModeConfig> = {
@@ -33,18 +32,6 @@ export const GAME_MODES: Record<GameMode, ModeConfig> = {
     pipeSpacing: 268,
     heartsEnabled: true,
     accelerates: false,
-    isDaily: false,
-  },
-  dailyChallenge: {
-    id: 'dailyChallenge',
-    label: 'Daily Challenge',
-    subtitle: 'Fixed 24h obstacle layout · Compete for the daily leaderboard',
-    pipeSpeed: 220,
-    pipeGap: 148,
-    pipeSpacing: 256,
-    heartsEnabled: true,
-    accelerates: false,
-    isDaily: true,
   },
   classic: {
     id: 'classic',
@@ -55,7 +42,6 @@ export const GAME_MODES: Record<GameMode, ModeConfig> = {
     pipeSpacing: 256,
     heartsEnabled: false,
     accelerates: false,
-    isDaily: false,
   },
   speedUp: {
     id: 'speedUp',
@@ -66,7 +52,6 @@ export const GAME_MODES: Record<GameMode, ModeConfig> = {
     pipeSpacing: 262,
     heartsEnabled: true,
     accelerates: true,
-    isDaily: false,
   },
 };
 

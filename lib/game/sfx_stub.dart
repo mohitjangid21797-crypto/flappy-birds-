@@ -5,7 +5,3 @@ void playWebSfx(String soundName) {
 int? readWebBestScore() => null;
 
 void writeWebBestScore(int score) {}
-
-String? readWebDailyBoard() => null;
-
-void writeWebDailyBoard(String json) {}

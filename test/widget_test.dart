@@ -5,30 +5,18 @@ import 'package:flappy_birds_game/main.dart';
 
 void main() {
   testWidgets(
-      '2130 Group 3D Flappy Bird renders Daily Challenge and Daily Board modal',
+      '2130 Group 3D Flappy Bird works offline without Daily Board and starts game',
       (WidgetTester tester) async {
     await tester.pumpWidget(const FlappyBirdApp());
     await tester.pump();
 
-    expect(find.text("LET'S PLAY WITH 2130 GROUP"), findsOneWidget);
+    expect(find.byType(CustomPaint), findsWidgets);
     expect(find.text('FLAPPY BIRD'), findsWidgets);
-    expect(find.text('Daily Challenge'), findsOneWidget);
-    expect(find.text('Daily Board'), findsOneWidget);
-
-    // Select Daily Challenge mode
-    await tester.tap(find.text('Daily Challenge'));
-    await tester.pump();
-    expect(find.text('Leaderboard'), findsOneWidget);
-
-    // Open Daily Leaderboard modal
-    await tester.tap(find.text('Leaderboard'));
-    await tester.pump();
-    expect(find.text('Play Daily Challenge'), findsNothing);
-    expect(find.text('Keep Playing'), findsOneWidget);
-
-    // Close modal and start playing
-    await tester.tap(find.text('Keep Playing'));
-    await tester.pump();
+    expect(find.text('Heart Run'), findsOneWidget);
+    expect(find.text('Classic'), findsOneWidget);
+    expect(find.text('Speed Up'), findsOneWidget);
+    expect(find.text('Daily Board'), findsNothing);
+    expect(find.text('Daily Challenge'), findsNothing);
 
     await tester.tapAt(const Offset(120, 200));
     await tester.pump(const Duration(milliseconds: 50));

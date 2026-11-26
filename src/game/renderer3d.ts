@@ -48,7 +48,7 @@ export function renderFlappyScene(
 
   drawDaySkyAndSun(ctx, s.width, groundTop, s.elapsedTime);
   drawClouds(ctx, s.clouds);
-  drawAnimatedGroupBanner(ctx, s.width, groundTop, s.elapsedTime, s.worldScroll);
+  drawPdfAsciiWatermark(ctx, s.width, groundTop, s.elapsedTime);
   drawPastelHills(ctx, s.width, groundTop, s.worldScroll);
   drawPipes3D(ctx, s.pipes, groundTop, s.elapsedTime);
   drawHearts3D(ctx, s.hearts, s.elapsedTime);
@@ -177,48 +177,46 @@ function drawClouds(ctx: CanvasRenderingContext2D, clouds: SkyCloud[]): void {
   }
 }
 
-function drawAnimatedGroupBanner(
+const PDF_WATERMARK_LINES = [
+  "  _          _   _         ____  _                         _ _   _     ",
+  " | |    ___ | |_( )___    |  _ \\| | __ _ _   _  __      __(_) |_| |__  ",
+  " | |   / _ \\| __|/ __|    | |_) | |/ _` | | | | \\ \\ /\\ / /| | __| '_ \\ ",
+  " | |__|  __/| |_ \\__ \\    |  __/| | (_| | |_| |  \\ V  V / | | |_| | | |",
+  " |_____\\___|\\___||___/    |_|   |_|\\__,_|\\__, |   \\_/\\_/  |_|\\__|_| |_|",
+  " =======================================|___/==========================",
+  "                                                                       ",
+  "        ____  _  _____   ___       ____ ____   ___  _   _ ____         ",
+  "       |___ \\/ ||___ /  / _ \\     / ___|  _ \\ / _ \\| | | |  _ \\        ",
+  "         __) | |  |_ \\ | | | |   | |  _| |_) | | | | | | | |_) |       ",
+  "        / __/| | ___) || |_| |   | |_| |  _ <| |_| | |_| |  __/        ",
+  "       |_____|_||____/  \\___/     \\____|_| \\_\\\\___/ \\___/|_|           ",
+  "       =======================================================         ",
+];
+
+function drawPdfAsciiWatermark(
   ctx: CanvasRenderingContext2D,
   width: number,
   groundTop: number,
-  elapsedTime: number,
-  worldScroll: number
+  elapsedTime: number
 ): void {
-  const label = "Let's Play With 2130 Group";
-  const skyMidY = groundTop * 0.35;
-  const bobY = Math.sin(elapsedTime * 1.9) * 10;
-  const span = width + 540;
-  const bannerX =
-    width + 270 - ((elapsedTime * 48 + worldScroll * 0.08) % span);
-  const bannerY = skyMidY + bobY;
-
   ctx.save();
-  ctx.translate(bannerX, bannerY);
+  ctx.translate(width * 0.5, groundTop * 0.43);
+  ctx.rotate(-0.14);
 
-  const shimmer = 0.72 + 0.28 * Math.sin(elapsedTime * 3.0);
-  ctx.fillStyle = `rgba(255, 255, 255, ${0.36 * shimmer})`;
-  drawRoundedRect(ctx, -192, -23, 384, 46, 23);
-  ctx.fill();
+  const fontSize = Math.max(6.5, Math.min(13.5, (width * 0.84) / 44));
+  const lineHeight = fontSize * 1.18;
+  const totalHeight = PDF_WATERMARK_LINES.length * lineHeight;
+  const startY = -totalHeight * 0.5 + lineHeight * 0.5;
+  const pulseAlpha = 0.16 + 0.025 * Math.sin(elapsedTime * 1.4);
 
-  ctx.fillStyle = `rgba(255, 248, 186, ${0.9 * shimmer})`;
-  for (const dx of [-206, 206]) {
-    const sy = Math.sin(elapsedTime * 3.8 + dx) * 6;
-    ctx.beginPath();
-    ctx.arc(dx, sy, 4, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillRect(dx - 7, sy - 1.1, 14, 2.2);
-    ctx.fillRect(dx - 1.1, sy - 7, 2.2, 14);
-  }
-
-  ctx.font = '900 22px system-ui, -apple-system, sans-serif';
+  ctx.font = `700 ${fontSize.toFixed(1)}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.lineJoin = 'round';
-  ctx.lineWidth = 4.5;
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
-  ctx.strokeText(label, 0, 0);
-  ctx.fillStyle = 'rgba(21, 50, 91, 0.62)';
-  ctx.fillText(label, 0, 0);
+  ctx.fillStyle = `rgba(15, 39, 68, ${pulseAlpha.toFixed(3)})`;
+
+  for (let i = 0; i < PDF_WATERMARK_LINES.length; i++) {
+    ctx.fillText(PDF_WATERMARK_LINES[i], 0, startY + i * lineHeight);
+  }
 
   ctx.restore();
 }

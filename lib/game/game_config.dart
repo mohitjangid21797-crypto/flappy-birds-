@@ -2,7 +2,6 @@ import 'dart:ui';
 
 enum GameMode {
   heartRun,
-  dailyChallenge,
   classic,
   speedUp,
 }
@@ -10,7 +9,6 @@ enum GameMode {
 extension GameModeConfig on GameMode {
   String get label => switch (this) {
         GameMode.heartRun => 'Heart Run',
-        GameMode.dailyChallenge => 'Daily Challenge',
         GameMode.classic => 'Classic',
         GameMode.speedUp => 'Speed Up',
       };
@@ -18,8 +16,6 @@ extension GameModeConfig on GameMode {
   String get subtitle => switch (this) {
         GameMode.heartRun =>
           '3D moving gates & collectible hearts for extra shield lives',
-        GameMode.dailyChallenge =>
-          'Fixed 24h obstacle layout · Compete for the daily leaderboard',
         GameMode.classic => 'Pure 1-life arcade run through 3D sky pillars',
         GameMode.speedUp =>
           'Speed ramps up with every point + collectible shield hearts',
@@ -27,40 +23,33 @@ extension GameModeConfig on GameMode {
 
   double get pipeSpeed => switch (this) {
         GameMode.heartRun => 215.0,
-        GameMode.dailyChallenge => 220.0,
         GameMode.classic => 220.0,
         GameMode.speedUp => 210.0,
       };
 
   double get pipeGap => switch (this) {
         GameMode.heartRun => 156.0,
-        GameMode.dailyChallenge => 148.0,
         GameMode.classic => 148.0,
         GameMode.speedUp => 152.0,
       };
 
   double get pipeSpacing => switch (this) {
         GameMode.heartRun => 268.0,
-        GameMode.dailyChallenge => 256.0,
         GameMode.classic => 256.0,
         GameMode.speedUp => 262.0,
       };
 
   bool get heartsEnabled => switch (this) {
         GameMode.heartRun => true,
-        GameMode.dailyChallenge => true,
         GameMode.classic => false,
         GameMode.speedUp => true,
       };
 
   bool get accelerates => switch (this) {
         GameMode.heartRun => false,
-        GameMode.dailyChallenge => false,
         GameMode.classic => false,
         GameMode.speedUp => true,
       };
-
-  bool get isDaily => this == GameMode.dailyChallenge;
 }
 
 enum BirdSkin {

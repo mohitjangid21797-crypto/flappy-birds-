@@ -1,15 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  buildDailyLeaderboard,
-  createSeededRng,
-  DailyChallengeStorage,
-  DailyCourseProfile,
-  getCountdownToReset,
-  getDailyCourseProfile,
-  getDailyDateKey,
-  loadDailyStorage,
-  recordDailyRun,
-} from './game/daily';
+  OfflineIndicator,
+  PWAInstallButton,
+} from './components/PWAInstallButton';
 import { loadBestScore, saveBestScore, soundEngine } from './game/sfx';
 import { drawCool3DBird, renderFlappyScene } from './game/renderer3d';
 import {
@@ -75,48 +68,32 @@ interface UiSnapshot {
   heartsRemaining: number;
   heartsCollected: number;
   isNewBest: boolean;
-  isNewDailyBest: boolean;
   muted: boolean;
   speedMultiplier: number;
   scorePop: number;
-  dailyCourse: DailyCourseProfile;
-  dailyStorage: DailyChallengeStorage;
-  dailyRank: number | null;
 }
 
 export function App() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
-  const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [mutePopping, setMutePopping] = useState(false);
   const mutePopTimerRef = useRef<number | null>(null);
-  const [resetCountdown, setResetCountdown] = useState(() =>
-    getCountdownToReset()
-  );
 
-  const [ui, setUi] = useState<UiSnapshot>(() => {
-    const dateKey = getDailyDateKey();
-    return {
-      phase: 'ready',
-      mode: 'heartRun',
-      skin: 'skyCap',
-      score: 0,
-      bestScore: loadBestScore(),
-      heartsRemaining: 1,
-      heartsCollected: 0,
-      isNewBest: false,
-      isNewDailyBest: false,
-      muted: false,
-      speedMultiplier: 1,
-      scorePop: 0,
-      dailyCourse: getDailyCourseProfile(dateKey),
-      dailyStorage: loadDailyStorage(dateKey),
-      dailyRank: null,
-    };
-  });
+  const [ui, setUi] = useState<UiSnapshot>(() => ({
+    phase: 'ready',
+    mode: 'heartRun',
+    skin: 'skyCap',
+    score: 0,
+    bestScore: loadBestScore(),
+    heartsRemaining: 1,
+    heartsCollected: 0,
+    isNewBest: false,
+    muted: false,
+    speedMultiplier: 1,
+    scorePop: 0,
+  }));
 
-  const initialDateKey = getDailyDateKey();
   const stateRef = useRef({
     width: 800,
     height: 600,
@@ -138,7 +115,6 @@ export function App() {
     heartsCollected: 0,
     pipesSpawnedCount: 0,
     isNewBest: false,
-    isNewDailyBest: false,
     invulnTimer: 0,
     gameOverCooldown: 0,
     flashAlpha: 0,
@@ -157,20 +133,14 @@ export function App() {
     lastGapY: null as number | null,
     prevBirdY: 240,
     trailEmitAccum: 0,
-    dailyDateKey: initialDateKey,
-    dailyCourse: getDailyCourseProfile(initialDateKey),
-    dailyStorage: loadDailyStorage(initialDateKey),
-    dailyRng: createSeededRng(getDailyCourseProfile(initialDateKey).seed),
-    dailyRank: null as number | null,
   });
 
   const syncUi = useCallback(() => {
     const s = stateRef.current;
     const cfg = GAME_MODES[s.mode];
-    const baseSpeed = cfg.isDaily ? s.dailyCourse.pipeSpeed : cfg.pipeSpeed;
     const currentSpeed = cfg.accelerates
-      ? baseSpeed + Math.min(120, s.score * 4)
-      : baseSpeed;
+      ? cfg.pipeSpeed + Math.min(120, s.score * 4)
+      : cfg.pipeSpeed;
     setUi({
       phase: s.phase,
       mode: s.mode,
@@ -180,35 +150,11 @@ export function App() {
       heartsRemaining: s.heartsRemaining,
       heartsCollected: s.heartsCollected,
       isNewBest: s.isNewBest,
-      isNewDailyBest: s.isNewDailyBest,
       muted: soundEngine.muted,
-      speedMultiplier: currentSpeed / baseSpeed,
+      speedMultiplier: currentSpeed / cfg.pipeSpeed,
       scorePop: s.scorePop,
-      dailyCourse: s.dailyCourse,
-      dailyStorage: s.dailyStorage,
-      dailyRank: s.dailyRank,
     });
   }, []);
-
-  // Live 24-hour reset timer & midnight rollover check
-  useEffect(() => {
-    const interval = window.setInterval(() => {
-      const now = new Date();
-      setResetCountdown(getCountdownToReset(now));
-      const todayKey = getDailyDateKey(now);
-      const s = stateRef.current;
-      if (s.dailyDateKey !== todayKey) {
-        s.dailyDateKey = todayKey;
-        s.dailyCourse = getDailyCourseProfile(todayKey);
-        s.dailyStorage = loadDailyStorage(todayKey);
-        s.dailyRng = createSeededRng(s.dailyCourse.seed);
-        s.dailyRank = null;
-        s.isNewDailyBest = false;
-        syncUi();
-      }
-    }, 1000);
-    return () => window.clearInterval(interval);
-  }, [syncUi]);
 
   const getGroundTop = (h: number) => Math.max(220, h - PHYSICS.groundHeight);
   const getBirdX = (w: number) => Math.max(84, Math.min(220, w * 0.26));
@@ -217,43 +163,33 @@ export function App() {
     const s = stateRef.current;
     const cfg = GAME_MODES[s.mode];
     const groundTop = getGroundTop(s.height);
-    const rand = cfg.isDaily ? s.dailyRng : Math.random;
 
     s.pipesSpawnedCount += 1;
     let kind: ObstacleKind = 'emeraldCylinder';
-    if (cfg.isDaily) {
-      const roll = rand();
-      if (s.pipesSpawnedCount >= 2 && roll > 0.62) {
-        kind = 'hoverPropellerGate';
-      } else if (s.pipesSpawnedCount >= 3 && roll > 0.34) {
-        kind = 'beaconTower';
-      }
-    } else {
-      if (s.pipesSpawnedCount >= 3 && s.pipesSpawnedCount % 3 === 0) {
-        kind = 'hoverPropellerGate';
-      } else if (s.pipesSpawnedCount >= 4 && s.pipesSpawnedCount % 4 === 0) {
-        kind = 'beaconTower';
-      }
+    if (s.pipesSpawnedCount >= 3 && s.pipesSpawnedCount % 3 === 0) {
+      kind = 'hoverPropellerGate';
+    } else if (s.pipesSpawnedCount >= 4 && s.pipesSpawnedCount % 4 === 0) {
+      kind = 'beaconTower';
     }
 
     const hoverAmplitude = kind === 'hoverPropellerGate' ? 20 : 0;
-    const gap = cfg.isDaily ? s.dailyCourse.pipeGap : cfg.pipeGap;
+    const gap = cfg.pipeGap;
     const margin = 68 + gap / 2 + hoverAmplitude;
     const minY = margin;
     const maxY = Math.max(minY + 10, groundTop - margin);
 
     let gapY: number;
     if (s.lastGapY === null) {
-      gapY = minY + rand() * (maxY - minY);
+      gapY = minY + Math.random() * (maxY - minY);
     } else {
       const maxDelta = 155;
       const lo = Math.max(minY, s.lastGapY - maxDelta);
       const hi = Math.min(maxY, s.lastGapY + maxDelta);
-      gapY = lo + rand() * Math.max(1, hi - lo);
+      gapY = lo + Math.random() * Math.max(1, hi - lo);
     }
     s.lastGapY = gapY;
 
-    const phase = rand() * Math.PI * 2;
+    const phase = Math.random() * Math.PI * 2;
     s.pipes.push({
       x,
       baseGapCenterY: gapY,
@@ -269,7 +205,7 @@ export function App() {
       s.hearts.push({
         x: x + PHYSICS.pipeWidth / 2,
         baseY: gapY,
-        phase: rand() * Math.PI * 2,
+        phase: Math.random() * Math.PI * 2,
         collected: false,
       });
     }
@@ -281,13 +217,6 @@ export function App() {
     const groundTop = getGroundTop(s.height);
     soundEngine.play('swoosh');
 
-    if (cfg.isDaily) {
-      const todayKey = getDailyDateKey();
-      s.dailyDateKey = todayKey;
-      s.dailyCourse = getDailyCourseProfile(todayKey);
-      s.dailyRng = createSeededRng(s.dailyCourse.seed);
-    }
-
     s.phase = 'ready';
     s.score = 0;
     s.heartsCollected = 0;
@@ -298,8 +227,6 @@ export function App() {
     s.hatBounce = 0;
     s.scorePop = 0;
     s.isNewBest = false;
-    s.isNewDailyBest = false;
-    s.dailyRank = null;
     s.pipes = [];
     s.hearts = [];
     s.particles = [];
@@ -316,7 +243,6 @@ export function App() {
   }, [syncUi]);
 
   const flap = useCallback(() => {
-    if (showLeaderboard) return;
     const s = stateRef.current;
     if (s.phase === 'paused' || s.phase === 'dying') return;
 
@@ -331,14 +257,6 @@ export function App() {
     const cfg = GAME_MODES[s.mode];
 
     if (s.phase === 'ready') {
-      if (cfg.isDaily) {
-        const todayKey = getDailyDateKey();
-        s.dailyDateKey = todayKey;
-        s.dailyCourse = getDailyCourseProfile(todayKey);
-        s.dailyStorage = loadDailyStorage(todayKey);
-        s.dailyRng = createSeededRng(s.dailyCourse.seed);
-      }
-
       s.phase = 'playing';
       s.score = 0;
       s.heartsCollected = 0;
@@ -346,8 +264,6 @@ export function App() {
       s.pipesSpawnedCount = 0;
       s.invulnTimer = 0;
       s.isNewBest = false;
-      s.isNewDailyBest = false;
-      s.dailyRank = null;
       s.pipes = [];
       s.hearts = [];
       s.feedbacks = [];
@@ -363,10 +279,9 @@ export function App() {
     s.hatBounce = 1.0;
 
     const skin = BIRD_SKINS[s.skin];
-    const baseSpeed = cfg.isDaily ? s.dailyCourse.pipeSpeed : cfg.pipeSpeed;
     const worldSpeed = cfg.accelerates
-      ? baseSpeed + Math.min(120, s.score * 4)
-      : baseSpeed;
+      ? cfg.pipeSpeed + Math.min(120, s.score * 4)
+      : cfg.pipeSpeed;
 
     // Wing-beat slipstream trail burst that lingers along the bird's flight curve
     for (let i = 0; i < 6; i++) {
@@ -408,7 +323,7 @@ export function App() {
 
     soundEngine.play('flap');
     syncUi();
-  }, [showLeaderboard, spawnPipe, startNewRunImmediately, syncUi]);
+  }, [spawnPipe, startNewRunImmediately, syncUi]);
 
   const togglePause = useCallback(() => {
     const s = stateRef.current;
@@ -445,12 +360,6 @@ export function App() {
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.repeat) return;
-      if (showLeaderboard) {
-        if (e.code === 'Escape') {
-          setShowLeaderboard(false);
-        }
-        return;
-      }
       const s = stateRef.current;
       if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') {
         e.preventDefault();
@@ -473,7 +382,7 @@ export function App() {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [flap, showLeaderboard, startNewRunImmediately, togglePause]);
+  }, [flap, startNewRunImmediately, togglePause]);
 
   useEffect(() => {
     const resize = () => {
@@ -516,21 +425,6 @@ export function App() {
       const s = stateRef.current;
       s.phase = 'gameOver';
       s.gameOverCooldown = 0.35;
-      if (GAME_MODES[s.mode].isDaily) {
-        const res = recordDailyRun(
-          {
-            score: s.score,
-            heartsCollected: s.heartsCollected,
-            skin: s.skin,
-          },
-          s.dailyDateKey
-        );
-        s.dailyStorage = res.storage;
-        s.isNewDailyBest = res.isNewDailyBest;
-        const rows = buildDailyLeaderboard(res.storage);
-        const match = rows.find((r) => r.isPlayer && r.score === s.score);
-        s.dailyRank = match ? match.rank : null;
-      }
       syncUi();
     };
 
@@ -633,8 +527,8 @@ export function App() {
       const cfg = GAME_MODES[s.mode];
       const groundTop = getGroundTop(s.height);
       const birdX = getBirdX(s.width);
-      const baseSpeed = cfg.isDaily ? s.dailyCourse.pipeSpeed : cfg.pipeSpeed;
-      const spacing = cfg.isDaily ? s.dailyCourse.pipeSpacing : cfg.pipeSpacing;
+      const baseSpeed = cfg.pipeSpeed;
+      const spacing = cfg.pipeSpacing;
 
       if (s.phase !== 'paused') {
         s.elapsedTime += dt;
@@ -1038,7 +932,6 @@ export function App() {
 
   const activeModeCfg = GAME_MODES[ui.mode];
   const medal = getMedalFromScore(ui.score);
-  const leaderboardRows = buildDailyLeaderboard(ui.dailyStorage);
 
   return (
     <div
@@ -1051,15 +944,15 @@ export function App() {
         className="block w-full h-full cursor-pointer touch-none"
       />
 
+      <OfflineIndicator />
+
       {/* Top-Left Live HUD */}
       {(ui.phase === 'playing' ||
         ui.phase === 'dying' ||
         ui.phase === 'paused') && (
         <div className="pointer-events-none absolute top-4 left-4 flex items-center gap-2.5 px-3.5 py-2 rounded-2xl bg-white/92 border border-[#1E3A5F]/20 shadow-[0_4px_0_rgba(15,39,68,0.16)]">
           <span className="text-[13px] font-extrabold text-[#15325B]">
-            {activeModeCfg.isDaily
-              ? `Daily · ${ui.dailyCourse.title}`
-              : activeModeCfg.label}
+            {activeModeCfg.label}
           </span>
           {activeModeCfg.accelerates && (
             <span className="text-xs font-black text-[#0EA5E9] tabular-nums">
@@ -1113,20 +1006,7 @@ export function App() {
 
       {/* Top-Right Tactile HUD Controls */}
       <div className="absolute top-4 right-4 flex items-center gap-2">
-        {ui.phase === 'ready' && (
-          <button
-            type="button"
-            onClick={() => setShowLeaderboard(true)}
-            title="Daily Leaderboard"
-            aria-label="Daily Leaderboard"
-            className="h-11 px-3.5 rounded-xl bg-white/95 border border-[#1E3A5F]/20 shadow-[0_3px_0_rgba(15,39,68,0.14)] flex items-center gap-1.5 text-[#15325B] text-xs font-extrabold hover:bg-white active:translate-y-0.5 cursor-pointer"
-          >
-            <svg viewBox="0 0 24 24" className="w-5 h-5 text-[#F59E0B]" fill="currentColor">
-              <path d="M19 5h-2V3H7v2H5c-1.1 0-2 .9-2 2v1c0 2.55 1.92 4.63 4.39 4.94.63 1.5 1.98 2.63 3.61 2.96V19H7v2h10v-2h-4v-3.1c1.63-.33 2.98-1.46 3.61-2.96C19.08 12.63 21 10.55 21 8V7c0-1.1-.9-2-2-2zM5 8V7h2v3.82C5.84 10.4 5 9.3 5 8zm14 0c0 1.3-.84 2.4-2 2.82V7h2v1z" />
-            </svg>
-            <span>Daily Board</span>
-          </button>
-        )}
+        {ui.phase === 'ready' && <PWAInstallButton />}
 
         <button
           type="button"
@@ -1184,49 +1064,33 @@ export function App() {
       {/* Ready / Title Overlay */}
       {ui.phase === 'ready' && (
         <>
-          <div className="pointer-events-none absolute top-[6%] inset-x-4 flex flex-col items-center text-center animate-[bounce_3.2s_ease-in-out_infinite]">
-            <p className="text-[13px] font-black tracking-[0.14em] text-[#15325B] drop-shadow-[0_1px_4px_rgba(255,255,255,0.9)]">
-              LET&apos;S PLAY WITH 2130 GROUP
-            </p>
-            <h1
-              style={{
-                WebkitTextStroke: '3px #FFFFFF',
-                textShadow: '0 4px 0 rgba(14,37,68,0.28)',
-              }}
-              className="mt-1 text-[44px] font-black leading-none tracking-wider text-[#E53E3E]"
-            >
-              FLAPPY BIRD
-            </h1>
+          <div className="pointer-events-none absolute top-[4%] inset-x-3 flex flex-col items-center text-center animate-[bounce_3.6s_ease-in-out_infinite]">
+            <div className="flex items-center justify-center gap-2.5">
+              <img
+                src="/app-logo.png"
+                alt="Flappy Bird 2130 Group logo"
+                referrerPolicy="no-referrer"
+                className="w-11 h-11 sm:w-13 sm:h-13 rounded-2xl border-2 border-white/95 shadow-[0_4px_0_rgba(14,37,68,0.26)] object-cover"
+              />
+              <h1
+                style={{
+                  WebkitTextStroke: '3px #FFFFFF',
+                  textShadow: '0 4px 0 rgba(14,37,68,0.28)',
+                }}
+                className="text-[36px] sm:text-[42px] font-black leading-none tracking-wider text-[#E53E3E]"
+              >
+                FLAPPY BIRD
+              </h1>
+            </div>
+
             {ui.bestScore > 0 && (
-              <p className="mt-1 text-sm font-extrabold text-[#15325B]">
+              <p className="mt-2 text-xs sm:text-sm font-extrabold text-[#15325B]">
                 All-Time Best · {ui.bestScore}
               </p>
             )}
           </div>
 
           <div className="absolute bottom-[94px] inset-x-4 flex flex-col items-center gap-2">
-            {/* Daily Challenge Info Strip when Daily mode active */}
-            {activeModeCfg.isDaily && (
-              <div className="flex flex-wrap items-center justify-center gap-3 px-4 py-2 rounded-2xl bg-white/95 border border-[#F59E0B]/50 shadow-[0_4px_0_rgba(180,83,9,0.22)]">
-                <div className="text-left">
-                  <p className="text-[11px] font-black tracking-wider text-[#B45309] uppercase">
-                    Today · {ui.dailyCourse.title}
-                  </p>
-                  <p className="text-xs font-extrabold text-[#15325B] tabular-nums">
-                    Best Today: {ui.dailyStorage.bestScore} · Resets in{' '}
-                    {resetCountdown}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setShowLeaderboard(true)}
-                  className="px-3 py-1.5 rounded-lg bg-[#F59E0B] text-white text-xs font-black shadow-[0_2px_0_#B45309] hover:bg-[#D97706] cursor-pointer"
-                >
-                  Leaderboard
-                </button>
-              </div>
-            )}
-
             {/* Bird Skin Selector */}
             <div className="flex flex-wrap items-center justify-center gap-1 p-1 rounded-2xl bg-white/92 border border-[#1E3A5F]/20 shadow-[0_4px_0_rgba(15,39,68,0.14)]">
               {(Object.keys(BIRD_SKINS) as BirdSkin[]).map((skinKey) => {
@@ -1236,7 +1100,8 @@ export function App() {
                     key={skinKey}
                     type="button"
                     onClick={() => {
-                      soundEngine.play('swoosh');
+                      soundEngine.setSkin(skinKey);
+                      soundEngine.play('flap');
                       stateRef.current.skin = skinKey;
                       syncUi();
                     }}
@@ -1257,7 +1122,6 @@ export function App() {
             <div className="flex flex-wrap items-center justify-center gap-1 p-1 rounded-xl bg-white/92 border border-[#1E3A5F]/20 shadow-[0_4px_0_rgba(15,39,68,0.14)]">
               {(Object.keys(GAME_MODES) as GameMode[]).map((modeKey) => {
                 const active = ui.mode === modeKey;
-                const isDaily = modeKey === 'dailyChallenge';
                 return (
                   <button
                     key={modeKey}
@@ -1269,9 +1133,7 @@ export function App() {
                     }}
                     className={`px-3 py-2 min-h-10 rounded-lg text-[12.5px] font-extrabold transition-colors cursor-pointer ${
                       active
-                        ? isDaily
-                          ? 'bg-[#F59E0B] text-white'
-                          : 'bg-[#0EA5E9] text-white'
+                        ? 'bg-[#0EA5E9] text-white'
                         : 'text-[#15325B] hover:bg-[#0EA5E9]/10'
                     }`}
                   >
@@ -1296,10 +1158,7 @@ export function App() {
       {ui.phase === 'paused' && (
         <div className="absolute inset-0 bg-[#15325B]/35 flex items-center justify-center p-5">
           <div className="w-[306px] p-5 rounded-[20px] bg-[#FCFDFF] border-2 border-[#1E3A5F]/20 shadow-[0_7px_0_rgba(15,39,68,0.25),0_14px_24px_rgba(15,39,68,0.2)] text-center">
-            <p className="text-xs font-extrabold tracking-wider text-[#0EA5E9]">
-              Let&apos;s Play With 2130 Group
-            </p>
-            <h2 className="mt-1 text-2xl font-black text-[#15325B]">
+            <h2 className="text-2xl font-black text-[#15325B]">
               Game Paused
             </h2>
             <div className="mt-5 flex gap-3">
@@ -1338,9 +1197,7 @@ export function App() {
           <div className="w-[348px] max-w-full p-5 rounded-[20px] bg-[#FCFDFF] border-2 border-[#1E3A5F]/20 shadow-[0_7px_0_rgba(15,39,68,0.25),0_14px_24px_rgba(15,39,68,0.2)]">
             <div className="flex items-center justify-between text-xs font-extrabold">
               <span className="text-[#0EA5E9]">
-                {activeModeCfg.isDaily
-                  ? `Daily · ${ui.dailyCourse.title}`
-                  : `${activeModeCfg.label} · ${BIRD_SKINS[ui.skin].label}`}
+                {activeModeCfg.label} · {BIRD_SKINS[ui.skin].label}
               </span>
               <span className="text-[#64748B]">2130 Group</span>
             </div>
@@ -1381,26 +1238,18 @@ export function App() {
                 </span>
 
                 <div className="mt-2 flex items-center gap-1.5">
-                  {(activeModeCfg.isDaily ? ui.isNewDailyBest : ui.isNewBest) && (
+                  {ui.isNewBest && (
                     <span className="px-1.5 py-0.5 rounded bg-[#E53E3E] text-white text-[10px] font-black">
-                      {activeModeCfg.isDaily ? 'NEW DAILY BEST' : 'NEW'}
+                      NEW
                     </span>
                   )}
                   <span className="text-[11px] font-extrabold tracking-widest text-[#64748B]">
-                    {activeModeCfg.isDaily ? 'DAILY BEST' : 'BEST'}
+                    BEST
                   </span>
                 </div>
                 <span className="text-[28px] font-black leading-tight text-[#15325B] tabular-nums">
-                  {activeModeCfg.isDaily
-                    ? ui.dailyStorage.bestScore
-                    : ui.bestScore}
+                  {ui.bestScore}
                 </span>
-
-                {activeModeCfg.isDaily && ui.dailyRank !== null && (
-                  <span className="mt-1.5 text-xs font-extrabold text-[#B45309]">
-                    Today&apos;s Rank · #{ui.dailyRank}
-                  </span>
-                )}
 
                 {activeModeCfg.heartsEnabled && (
                   <span className="mt-1 text-xs font-bold text-[#E5253A]">
@@ -1411,126 +1260,12 @@ export function App() {
             </div>
 
             <div className="mt-5 flex gap-2.5">
-              {activeModeCfg.isDaily && (
-                <button
-                  type="button"
-                  onClick={() => setShowLeaderboard(true)}
-                  className="flex-1 h-12 rounded-[14px] bg-[#F59E0B] text-white font-black text-sm tracking-wide shadow-[0_4px_0_#B45309] active:translate-y-0.5 cursor-pointer"
-                >
-                  Daily Board
-                </button>
-              )}
               <button
                 type="button"
                 onClick={startNewRunImmediately}
                 className="flex-1 h-12 rounded-[14px] bg-[#E53E3E] text-white font-black text-base tracking-wide shadow-[0_4px_0_#B91C1C] active:translate-y-0.5 cursor-pointer"
               >
                 Play Again
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Daily Leaderboard Modal */}
-      {showLeaderboard && (
-        <div
-          className="absolute inset-0 z-20 bg-[#15325B]/45 flex items-center justify-center p-4"
-          onClick={() => setShowLeaderboard(false)}
-        >
-          <div
-            className="w-[380px] max-w-full p-5 rounded-[22px] bg-[#FCFDFF] border-2 border-[#1E3A5F]/20 shadow-[0_8px_0_rgba(15,39,68,0.25),0_20px_32px_rgba(15,39,68,0.25)]"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-[11px] font-black tracking-widest text-[#F59E0B] uppercase">
-                  Daily Challenge · {ui.dailyCourse.dateKey}
-                </p>
-                <h2 className="text-xl font-black text-[#15325B]">
-                  {ui.dailyCourse.title}
-                </h2>
-                <p className="text-xs font-bold text-[#64748B] tabular-nums mt-0.5">
-                  Resets in {resetCountdown} · {ui.dailyStorage.attempts}{' '}
-                  {ui.dailyStorage.attempts === 1 ? 'attempt' : 'attempts'} today
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowLeaderboard(false)}
-                aria-label="Close Daily Leaderboard"
-                className="w-9 h-9 rounded-lg bg-[#E2E8F0] hover:bg-[#CBD5E1] flex items-center justify-center text-[#15325B] font-black cursor-pointer"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="mt-4 max-h-[290px] overflow-y-auto space-y-2 pr-1">
-              {leaderboardRows.map((row) => (
-                <div
-                  key={row.id}
-                  className={`flex items-center justify-between px-3 py-2.5 rounded-xl border ${
-                    row.isPlayerBest
-                      ? 'bg-[#FEF3C7] border-[#F59E0B]'
-                      : row.isPlayer
-                        ? 'bg-[#E0F2FE] border-[#38BDF8]'
-                        : 'bg-[#F8FAFC] border-[#E2E8F0]'
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <span
-                      className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black shrink-0 ${
-                        row.rank === 1
-                          ? 'bg-[#F59E0B] text-white'
-                          : row.rank === 2
-                            ? 'bg-[#94A3B8] text-white'
-                            : row.rank === 3
-                              ? 'bg-[#CD7F32] text-white'
-                              : 'bg-[#E2E8F0] text-[#475569]'
-                      }`}
-                    >
-                      #{row.rank}
-                    </span>
-                    <div className="min-w-0">
-                      <p className="text-xs font-black text-[#15325B] truncate">
-                        {row.name}
-                      </p>
-                      <p className="text-[11px] font-semibold text-[#64748B] truncate">
-                        {row.subtitle}
-                        {row.skin ? ` · ${BIRD_SKINS[row.skin].label}` : ''}
-                      </p>
-                    </div>
-                  </div>
-
-                  <span className="text-base font-black text-[#15325B] tabular-nums pl-2">
-                    {row.score}
-                  </span>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-4 flex gap-2.5">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowLeaderboard(false);
-                  if (ui.mode !== 'dailyChallenge') {
-                    stateRef.current.mode = 'dailyChallenge';
-                    startNewRunImmediately();
-                  }
-                }}
-                className="flex-1 h-11 rounded-xl bg-[#F59E0B] text-white font-black text-sm shadow-[0_3px_0_#B45309] cursor-pointer"
-              >
-                {ui.mode === 'dailyChallenge'
-                  ? 'Keep Playing'
-                  : 'Play Daily Challenge'}
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowLeaderboard(false)}
-                className="px-4 h-11 rounded-xl bg-[#E2E8F0] text-[#15325B] font-extrabold text-sm cursor-pointer"
-              >
-                Close
               </button>
             </div>
           </div>
