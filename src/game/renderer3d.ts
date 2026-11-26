@@ -48,7 +48,7 @@ export function renderFlappyScene(
 
   drawDaySkyAndSun(ctx, s.width, groundTop, s.elapsedTime);
   drawClouds(ctx, s.clouds);
-  drawPdfAsciiWatermark(ctx, s.width, groundTop, s.elapsedTime);
+  drawGroupSkyBrand(ctx, s.width, groundTop, s.elapsedTime, s.worldScroll);
   drawPastelHills(ctx, s.width, groundTop, s.worldScroll);
   drawPipes3D(ctx, s.pipes, groundTop, s.elapsedTime);
   drawHearts3D(ctx, s.hearts, s.elapsedTime);
@@ -177,47 +177,135 @@ function drawClouds(ctx: CanvasRenderingContext2D, clouds: SkyCloud[]): void {
   }
 }
 
-const PDF_WATERMARK_LINES = [
-  "  _          _   _         ____  _                         _ _   _     ",
-  " | |    ___ | |_( )___    |  _ \\| | __ _ _   _  __      __(_) |_| |__  ",
-  " | |   / _ \\| __|/ __|    | |_) | |/ _` | | | | \\ \\ /\\ / /| | __| '_ \\ ",
-  " | |__|  __/| |_ \\__ \\    |  __/| | (_| | |_| |  \\ V  V / | | |_| | | |",
-  " |_____\\___|\\___||___/    |_|   |_|\\__,_|\\__, |   \\_/\\_/  |_|\\__|_| |_|",
-  " =======================================|___/==========================",
-  "                                                                       ",
-  "        ____  _  _____   ___       ____ ____   ___  _   _ ____         ",
-  "       |___ \\/ ||___ /  / _ \\     / ___|  _ \\ / _ \\| | | |  _ \\        ",
-  "         __) | |  |_ \\ | | | |   | |  _| |_) | | | | | | | |_) |       ",
-  "        / __/| | ___) || |_| |   | |_| |  _ <| |_| | |_| |  __/        ",
-  "       |_____|_||____/  \\___/     \\____|_| \\_\\\\___/ \\___/|_|           ",
-  "       =======================================================         ",
-];
-
-function drawPdfAsciiWatermark(
+function drawGroupSkyBrand(
   ctx: CanvasRenderingContext2D,
   width: number,
   groundTop: number,
-  elapsedTime: number
+  elapsedTime: number,
+  worldScroll: number
 ): void {
+  const heroSize = Math.max(24, Math.min(44, width * 0.068));
+  const eyebrowSize = Math.max(11, Math.min(16, heroSize * 0.36));
+
   ctx.save();
-  ctx.translate(width * 0.5, groundTop * 0.43);
-  ctx.rotate(-0.14);
-
-  const fontSize = Math.max(6.5, Math.min(13.5, (width * 0.84) / 44));
-  const lineHeight = fontSize * 1.18;
-  const totalHeight = PDF_WATERMARK_LINES.length * lineHeight;
-  const startY = -totalHeight * 0.5 + lineHeight * 0.5;
-  const pulseAlpha = 0.16 + 0.025 * Math.sin(elapsedTime * 1.4);
-
-  ctx.font = `700 ${fontSize.toFixed(1)}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillStyle = `rgba(15, 39, 68, ${pulseAlpha.toFixed(3)})`;
 
-  for (let i = 0; i < PDF_WATERMARK_LINES.length; i++) {
-    ctx.fillText(PDF_WATERMARK_LINES[i], 0, startY + i * lineHeight);
+  const heroFont = `900 ${heroSize.toFixed(1)}px "Outfit", "Plus Jakarta Sans", system-ui, sans-serif`;
+  const eyebrowFont = `700 ${eyebrowSize.toFixed(1)}px "Plus Jakarta Sans", "Outfit", system-ui, sans-serif`;
+
+  ctx.font = heroFont;
+  const heroWidth = ctx.measureText('2130 GROUP').width + 44;
+  const span = width + heroWidth + 120;
+  const progress =
+    (elapsedTime * 22 + worldScroll * 0.035 + span * 0.5) % span;
+  const driftX = width + heroWidth * 0.5 + 60 - progress;
+
+  const baseSkyY = Math.max(122, Math.min(groundTop * 0.36, groundTop - 185));
+  const floatY = Math.sin(elapsedTime * 1.15) * 7.5;
+  const breathScale = 1 + 0.015 * Math.sin(elapsedTime * 1.5);
+
+  const edgePad = 70;
+  const leftFade = Math.max(0, Math.min(1, (driftX + heroWidth * 0.35) / edgePad));
+  const rightFade = Math.max(
+    0,
+    Math.min(1, (width - driftX + heroWidth * 0.35) / edgePad)
+  );
+  const fadeAlpha = (0.76 + 0.1 * Math.sin(elapsedTime * 1.4)) * Math.min(leftFade, rightFade);
+  if (fadeAlpha <= 0.01) {
+    ctx.restore();
+    return;
   }
 
+  ctx.translate(driftX, baseSkyY + floatY);
+  ctx.scale(breathScale, breathScale);
+  ctx.globalAlpha = fadeAlpha;
+
+  const eyebrowY = -heroSize * 0.62;
+  const heroY = heroSize * 0.12;
+  const ruleY = heroSize * 0.68;
+
+  // Eyebrow: clean tracked "LET'S PLAY WITH"
+  ctx.font = eyebrowFont;
+  const ctxWithSpacing = ctx as CanvasRenderingContext2D & {
+    letterSpacing?: string;
+  };
+  if ('letterSpacing' in ctxWithSpacing) {
+    ctxWithSpacing.letterSpacing = '3.6px';
+  }
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.78)';
+  ctx.fillText("LET'S PLAY WITH", 0, eyebrowY + 1);
+  ctx.fillStyle = 'rgba(15, 39, 68, 0.78)';
+  ctx.fillText("LET'S PLAY WITH", 0, eyebrowY);
+
+  // Hero: "2130 GROUP" with animated cool sapphire -> teal -> gold gradient & shimmer
+  ctx.font = heroFont;
+  if ('letterSpacing' in ctxWithSpacing) {
+    ctxWithSpacing.letterSpacing = '2px';
+  }
+
+  // Soft white rim + subtle drop shadow for clean readability over clouds & sky
+  ctx.save();
+  ctx.shadowColor = 'rgba(15, 39, 68, 0.18)';
+  ctx.shadowBlur = 10;
+  ctx.shadowOffsetY = 3;
+  ctx.lineWidth = 3.5;
+  ctx.lineJoin = 'round';
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.78)';
+  ctx.strokeText('2130 GROUP', 0, heroY);
+  ctx.restore();
+
+  const halfW = heroWidth * 0.65;
+  const sweep = (Math.sin(elapsedTime * 1.25) * 0.5 + 0.5) * 0.55;
+  const grad = ctx.createLinearGradient(-halfW, heroY - 12, halfW, heroY + 14);
+  grad.addColorStop(0, '#1E3A8A');
+  grad.addColorStop(Math.max(0.08, 0.22 + sweep * 0.4), '#0284C7');
+  grad.addColorStop(Math.min(0.86, 0.48 + sweep * 0.5), '#0D9488');
+  grad.addColorStop(Math.min(0.96, 0.72 + sweep * 0.35), '#F59E0B');
+  grad.addColorStop(1, '#1D4ED8');
+
+  ctx.fillStyle = grad;
+  ctx.fillText('2130 GROUP', 0, heroY);
+
+  // Subtle passing specular light band over the letters
+  const glintCenter = ((elapsedTime * 0.42) % 1.8) - 0.4;
+  if (glintCenter >= -0.2 && glintCenter <= 1.2) {
+    const sheenGrad = ctx.createLinearGradient(-halfW, 0, halfW, 0);
+    const s0 = Math.max(0, Math.min(1, glintCenter - 0.14));
+    const s1 = Math.max(0, Math.min(1, glintCenter));
+    const s2 = Math.max(0, Math.min(1, glintCenter + 0.14));
+    sheenGrad.addColorStop(s0, 'rgba(255, 255, 255, 0)');
+    sheenGrad.addColorStop(s1, 'rgba(255, 255, 255, 0.52)');
+    sheenGrad.addColorStop(s2, 'rgba(255, 255, 255, 0)');
+    ctx.fillStyle = sheenGrad;
+    ctx.fillText('2130 GROUP', 0, heroY);
+  }
+
+  // Sleek animated horizontal accent rule underneath
+  const lineHalf = Math.min(width * 0.26, heroWidth * 0.46);
+  const lineGrad = ctx.createLinearGradient(-lineHalf, ruleY, lineHalf, ruleY);
+  lineGrad.addColorStop(0, 'rgba(2, 132, 199, 0)');
+  lineGrad.addColorStop(0.28, 'rgba(2, 132, 199, 0.55)');
+  lineGrad.addColorStop(0.5, 'rgba(245, 158, 11, 0.78)');
+  lineGrad.addColorStop(0.72, 'rgba(13, 148, 136, 0.55)');
+  lineGrad.addColorStop(1, 'rgba(2, 132, 199, 0)');
+
+  ctx.strokeStyle = lineGrad;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(-lineHalf, ruleY);
+  ctx.lineTo(lineHalf, ruleY);
+  ctx.stroke();
+
+  const orbX = Math.sin(elapsedTime * 1.45) * (lineHalf * 0.62);
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+  ctx.beginPath();
+  ctx.arc(orbX, ruleY, 2.6, 0, Math.PI * 2);
+  ctx.fill();
+
+  if ('letterSpacing' in ctxWithSpacing) {
+    ctxWithSpacing.letterSpacing = '0px';
+  }
   ctx.restore();
 }
 

@@ -1068,7 +1068,7 @@ export function App() {
             <div className="flex items-center justify-center gap-2.5">
               <img
                 src="/app-logo.png"
-                alt="Flappy Bird 2130 Group logo"
+                alt="Tap Flying Bird logo"
                 referrerPolicy="no-referrer"
                 className="w-11 h-11 sm:w-13 sm:h-13 rounded-2xl border-2 border-white/95 shadow-[0_4px_0_rgba(14,37,68,0.26)] object-cover"
               />
@@ -1077,9 +1077,9 @@ export function App() {
                   WebkitTextStroke: '3px #FFFFFF',
                   textShadow: '0 4px 0 rgba(14,37,68,0.28)',
                 }}
-                className="text-[36px] sm:text-[42px] font-black leading-none tracking-wider text-[#E53E3E]"
+                className="text-[28px] sm:text-[38px] font-black leading-none tracking-wider text-[#E53E3E]"
               >
-                FLAPPY BIRD
+                TAP FLYING BIRD
               </h1>
             </div>
 

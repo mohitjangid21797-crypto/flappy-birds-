@@ -1256,8 +1256,8 @@ class _FlappyGameScreenState extends State<FlappyGameScreen>
                           ),
                           const SizedBox(width: 10),
                           const _OutlinedText(
-                            text: 'FLAPPY BIRD',
-                            fontSize: 40,
+                            text: 'TAP FLYING BIRD',
+                            fontSize: 33,
                             strokeWidth: 7,
                             fillColor: GameColors.scoreRed,
                             strokeColor: Colors.white,

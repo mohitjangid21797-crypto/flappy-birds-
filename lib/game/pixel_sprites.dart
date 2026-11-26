@@ -55,7 +55,7 @@ class FlappyScenePainter extends CustomPainter {
 
     _drawDaySkyAndSun(canvas, size, groundTop);
     _drawClouds(canvas);
-    _drawPdfAsciiWatermark(canvas, size, groundTop);
+    _drawGroupSkyWatermark(canvas, size, groundTop);
     _drawPastelHills(canvas, size, groundTop);
     _drawPipes3D(canvas, groundTop);
     _drawHearts3D(canvas);
@@ -171,44 +171,208 @@ class FlappyScenePainter extends CustomPainter {
     canvas.restore();
   }
 
-  static const String _pdfWatermarkText =
-      "  _          _   _         ____  _                         _ _   _     \n"
-      r" | |    ___ | |_( )___    |  _ \| | __ _ _   _  __      __(_) |_| |__  " "\n"
-      r" | |   / _ \| __|/ __|    | |_) | |/ _` | | | | \ \ /\ / /| | __| '_ \ " "\n"
-      r" | |__|  __/| |_ \__ \    |  __/| | (_| | |_| |  \ V  V / | | |_| | | |" "\n"
-      r" |_____\___|\___||___/    |_|   |_|\__,_|\__, |   \_/\_/  |_|\__|_| |_|" "\n"
-      " =======================================|___/==========================\n"
-      "                                                                       \n"
-      "        ____  _  _____   ___       ____ ____   ___  _   _ ____         \n"
-      r"       |___ \/ ||___ /  / _ \     / ___|  _ \ / _ \| | | |  _ \        " "\n"
-      r"         __) | |  |_ \ | | | |   | |  _| |_) | | | | | | | |_) |       " "\n"
-      r"        / __/| | ___) || |_| |   | |_| |  _ <| |_| | |_| |  __/        " "\n"
-      r"       |_____|_||____/  \___/     \____|_| \_\\___/ \___/|_|           " "\n"
-      "       =======================================================         ";
+  void _drawGroupSkyWatermark(Canvas canvas, Size size, double groundTop) {
+    final double heroSize = (size.width * 0.068).clamp(24.0, 44.0);
+    final double eyebrowSize = (heroSize * 0.36).clamp(11.0, 16.0);
 
-  void _drawPdfAsciiWatermark(Canvas canvas, Size size, double groundTop) {
-    final double fontSize = ((size.width * 0.84) / 44.0).clamp(6.5, 13.5);
-    final double pulseAlpha = 0.16 + 0.025 * math.sin(elapsedTime * 1.4);
-
-    final TextPainter painter = TextPainter(
+    final TextPainter heroMeasure = TextPainter(
       text: TextSpan(
-        text: _pdfWatermarkText,
+        text: '2130 GROUP',
         style: TextStyle(
-          fontFamily: 'monospace',
-          fontSize: fontSize,
-          height: 1.18,
-          fontWeight: FontWeight.w700,
-          color: GameColors.brandNavy.withValues(alpha: pulseAlpha),
+          fontSize: heroSize,
+          fontWeight: FontWeight.w900,
+          letterSpacing: 2.0,
         ),
       ),
-      textAlign: TextAlign.left,
+      textDirection: TextDirection.ltr,
+    )..layout();
+
+    final double heroWidth = heroMeasure.width + 44.0;
+    final double span = size.width + heroWidth + 120.0;
+    final double progress =
+        (elapsedTime * 22.0 + worldScroll * 0.035 + span * 0.5) % span;
+    final double driftX = size.width + heroWidth * 0.5 + 60.0 - progress;
+
+    final double baseSkyY =
+        math.max(122.0, math.min(groundTop * 0.36, groundTop - 185.0));
+    final double floatY = math.sin(elapsedTime * 1.15) * 7.5;
+    final double breathScale = 1.0 + 0.015 * math.sin(elapsedTime * 1.5);
+
+    const double edgePad = 70.0;
+    final double leftFade = ((driftX + heroWidth * 0.35) / edgePad).clamp(0.0, 1.0);
+    final double rightFade =
+        ((size.width - driftX + heroWidth * 0.35) / edgePad).clamp(0.0, 1.0);
+    final double fadeAlpha =
+        (0.76 + 0.1 * math.sin(elapsedTime * 1.4)) * math.min(leftFade, rightFade);
+    if (fadeAlpha <= 0.01) return;
+
+    final double eyebrowY = -heroSize * 0.62;
+    final double heroY = heroSize * 0.12;
+    final double ruleY = heroSize * 0.68;
+
+    final TextPainter eyebrowGlow = TextPainter(
+      text: TextSpan(
+        text: "LET'S PLAY WITH",
+        style: TextStyle(
+          fontSize: eyebrowSize,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 3.6,
+          color: Colors.white.withValues(alpha: 0.78 * fadeAlpha),
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+
+    final TextPainter eyebrowFill = TextPainter(
+      text: TextSpan(
+        text: "LET'S PLAY WITH",
+        style: TextStyle(
+          fontSize: eyebrowSize,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 3.6,
+          color: const Color(0xFF0F2744).withValues(alpha: 0.78 * fadeAlpha),
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+
+    final TextPainter heroHalo = TextPainter(
+      text: TextSpan(
+        text: '2130 GROUP',
+        style: TextStyle(
+          fontSize: heroSize,
+          fontWeight: FontWeight.w900,
+          letterSpacing: 2.0,
+          foreground: Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 3.5
+            ..strokeJoin = StrokeJoin.round
+            ..color = Colors.white.withValues(alpha: 0.78 * fadeAlpha),
+          shadows: [
+            Shadow(
+              color: const Color(0xFF0F2744).withValues(alpha: 0.18 * fadeAlpha),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+
+    final double halfW = heroWidth * 0.65;
+    final double sweep = (math.sin(elapsedTime * 1.25) * 0.5 + 0.5) * 0.55;
+    final Rect gradRect = Rect.fromLTRB(-halfW, heroY - 12, halfW, heroY + 14);
+    final Shader textShader = LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [
+        const Color(0xFF1E3A8A).withValues(alpha: fadeAlpha),
+        const Color(0xFF0284C7).withValues(alpha: fadeAlpha),
+        const Color(0xFF0D9488).withValues(alpha: fadeAlpha),
+        const Color(0xFFF59E0B).withValues(alpha: fadeAlpha),
+        const Color(0xFF1D4ED8).withValues(alpha: fadeAlpha),
+      ],
+      stops: [
+        0.0,
+        math.max(0.08, 0.22 + sweep * 0.4),
+        math.min(0.86, 0.48 + sweep * 0.5),
+        math.min(0.96, 0.72 + sweep * 0.35),
+        1.0,
+      ],
+    ).createShader(gradRect);
+
+    final TextPainter heroFill = TextPainter(
+      text: TextSpan(
+        text: '2130 GROUP',
+        style: TextStyle(
+          fontSize: heroSize,
+          fontWeight: FontWeight.w900,
+          letterSpacing: 2.0,
+          foreground: Paint()..shader = textShader,
+        ),
+      ),
       textDirection: TextDirection.ltr,
     )..layout();
 
     canvas.save();
-    canvas.translate(size.width * 0.5, groundTop * 0.43);
-    canvas.rotate(-0.14);
-    painter.paint(canvas, Offset(-painter.width / 2, -painter.height / 2));
+    canvas.translate(driftX, baseSkyY + floatY);
+    canvas.scale(breathScale);
+
+    eyebrowGlow.paint(
+      canvas,
+      Offset(-eyebrowGlow.width / 2, eyebrowY - eyebrowGlow.height / 2 + 1),
+    );
+    eyebrowFill.paint(
+      canvas,
+      Offset(-eyebrowFill.width / 2, eyebrowY - eyebrowFill.height / 2),
+    );
+
+    heroHalo.paint(
+      canvas,
+      Offset(-heroHalo.width / 2, heroY - heroHalo.height / 2),
+    );
+    heroFill.paint(
+      canvas,
+      Offset(-heroFill.width / 2, heroY - heroFill.height / 2),
+    );
+
+    final double glintCenter = ((elapsedTime * 0.42) % 1.8) - 0.4;
+    if (glintCenter >= -0.2 && glintCenter <= 1.2) {
+      final Shader sheenShader = LinearGradient(
+        colors: [
+          const Color(0x00FFFFFF),
+          Colors.white.withValues(alpha: 0.52 * fadeAlpha),
+          const Color(0x00FFFFFF),
+        ],
+        stops: [
+          (glintCenter - 0.14).clamp(0.0, 1.0),
+          glintCenter.clamp(0.0, 1.0),
+          (glintCenter + 0.14).clamp(0.0, 1.0),
+        ],
+      ).createShader(Rect.fromLTRB(-halfW, heroY - 12, halfW, heroY + 14));
+
+      final TextPainter heroSheen = TextPainter(
+        text: TextSpan(
+          text: '2130 GROUP',
+          style: TextStyle(
+            fontSize: heroSize,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 2.0,
+            foreground: Paint()..shader = sheenShader,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      heroSheen.paint(
+        canvas,
+        Offset(-heroSheen.width / 2, heroY - heroSheen.height / 2),
+      );
+    }
+
+    final double lineHalf = math.min(size.width * 0.26, heroWidth * 0.46);
+    final Rect lineRect = Rect.fromLTWH(-lineHalf, ruleY - 1.0, lineHalf * 2, 2.0);
+    final Paint linePaint = Paint()
+      ..strokeWidth = 2.0
+      ..shader = LinearGradient(
+        colors: [
+          const Color(0x000284C7),
+          const Color(0xFF0284C7).withValues(alpha: 0.55 * fadeAlpha),
+          const Color(0xFFF59E0B).withValues(alpha: 0.78 * fadeAlpha),
+          const Color(0xFF0D9488).withValues(alpha: 0.55 * fadeAlpha),
+          const Color(0x000284C7),
+        ],
+        stops: const [0.0, 0.28, 0.5, 0.72, 1.0],
+      ).createShader(lineRect);
+    canvas.drawLine(Offset(-lineHalf, ruleY), Offset(lineHalf, ruleY), linePaint);
+
+    final double orbX = math.sin(elapsedTime * 1.45) * (lineHalf * 0.62);
+    canvas.drawCircle(
+      Offset(orbX, ruleY),
+      2.6,
+      Paint()..color = Colors.white.withValues(alpha: 0.9 * fadeAlpha),
+    );
+
     canvas.restore();
   }
 

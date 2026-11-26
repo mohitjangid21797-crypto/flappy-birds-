@@ -1,11 +1,11 @@
 {
-    "name": "Flappy Bird — 2130 Group",
-    "short_name": "Flappy 2130",
+    "name": "Tap Flying Bird",
+    "short_name": "Tap Flying Bird",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#5ECDF9",
     "theme_color": "#5ECDF9",
-    "description": "Let's Play With 2130 Group — Daytime pastel Flappy Bird arcade game built with Flutter.",
+    "description": "Tap Flying Bird — Daytime pastel arcade game built with Flutter by 2130 Group.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

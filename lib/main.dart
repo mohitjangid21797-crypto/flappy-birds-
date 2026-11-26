@@ -13,7 +13,7 @@ class FlappyBirdApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flappy Bird — 2130 Group',
+      title: 'Tap Flying Bird',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(

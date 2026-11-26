@@ -11,7 +11,7 @@ void main() {
     await tester.pump();
 
     expect(find.byType(CustomPaint), findsWidgets);
-    expect(find.text('FLAPPY BIRD'), findsWidgets);
+    expect(find.text('TAP FLYING BIRD'), findsWidgets);
     expect(find.text('Heart Run'), findsOneWidget);
     expect(find.text('Classic'), findsOneWidget);
     expect(find.text('Speed Up'), findsOneWidget);
@@ -21,7 +21,7 @@ void main() {
     await tester.tapAt(const Offset(120, 200));
     await tester.pump(const Duration(milliseconds: 50));
 
-    expect(find.text('FLAPPY BIRD'), findsNothing);
+    expect(find.text('TAP FLYING BIRD'), findsNothing);
     expect(find.byIcon(Icons.pause_rounded), findsOneWidget);
   });
 }

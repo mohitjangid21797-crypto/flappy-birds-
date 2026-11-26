@@ -12,10 +12,10 @@ export default defineConfig({
       includeAssets: ['favicon.png', 'apple-touch-icon.png', 'app-logo.png'],
       manifest: {
         id: '/',
-        name: "Flappy Bird — Let's Play With 2130 Group",
-        short_name: 'Flappy 2130',
+        name: 'Tap Flying Bird',
+        short_name: 'Tap Flying Bird',
         description:
-          "Let's Play With 2130 Group — 3D animated daytime Flappy Bird arcade game with collectible shield hearts and 3D obstacles.",
+          'Tap Flying Bird — 3D animated daytime arcade game with collectible shield hearts and 3D obstacles by 2130 Group.',
         theme_color: '#56C8FA',
         background_color: '#56C8FA',
         display: 'standalone',
