@@ -215,6 +215,7 @@ export function App() {
     const s = stateRef.current;
     const cfg = GAME_MODES[s.mode];
     const groundTop = getGroundTop(s.height);
+    soundEngine.stopBgm();
     soundEngine.play('swoosh');
 
     s.phase = 'ready';
@@ -271,6 +272,7 @@ export function App() {
       s.prevBirdY = s.birdY;
       s.trailEmitAccum = 0;
       spawnPipe(Math.max(s.width * 0.85, birdX + 340));
+      soundEngine.startBgm(true);
     }
 
     s.birdVelocity = PHYSICS.flapVelocity;
@@ -329,9 +331,11 @@ export function App() {
     const s = stateRef.current;
     if (s.phase === 'playing') {
       s.phase = 'paused';
+      soundEngine.setPaused(true);
       syncUi();
     } else if (s.phase === 'paused') {
       s.phase = 'playing';
+      soundEngine.setPaused(false);
       syncUi();
     }
   }, [syncUi]);
@@ -346,6 +350,9 @@ export function App() {
 
   const toggleMute = useCallback(() => {
     soundEngine.muted = !soundEngine.muted;
+    if (!soundEngine.muted) {
+      soundEngine.play('swoosh');
+    }
     if (mutePopTimerRef.current !== null) {
       window.clearTimeout(mutePopTimerRef.current);
     }
@@ -425,6 +432,7 @@ export function App() {
       const s = stateRef.current;
       s.phase = 'gameOver';
       s.gameOverCooldown = 0.35;
+      soundEngine.stopBgm();
       syncUi();
     };
 
@@ -488,6 +496,7 @@ export function App() {
       const birdX = getBirdX(s.width);
       const skin = BIRD_SKINS[s.skin];
 
+      soundEngine.stopBgm();
       soundEngine.play('hit');
       s.flashAlpha = 0.72;
       s.shakeTimer = 0.22;
@@ -702,7 +711,9 @@ export function App() {
             if (!pipe.passed && pipe.x + PHYSICS.pipeWidth / 2 < birdX) {
               pipe.passed = true;
               incrementScore(1);
-              soundEngine.play('score');
+              soundEngine.play(
+                s.score > 0 && s.score % 10 === 0 ? 'milestone' : 'score'
+              );
               scoreChanged = true;
             }
           }

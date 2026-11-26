@@ -1,19 +1,6 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <!--
-    If you are serving your web app in a path other than the root, change the
-    href value below to reflect the base path you are serving from.
-
-    The path provided below has to start and end with a slash "/" in order for
-    it to work correctly.
-
-    For more details:
-    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
-
-    This is a placeholder for base href that will be replaced by the value of
-    the `--base-href` argument provided to `flutter build`.
-  -->
   <base href="$FLUTTER_BASE_HREF">
 
   <meta charset="UTF-8">
@@ -39,23 +26,98 @@
   <script>
     (function () {
       var audioCtx = null;
-      function getCtx() {
+      var masterGain = null;
+      var sfxBus = null;
+      var bgmBus = null;
+      var noiseBuffer = null;
+      var isMuted = false;
+      var isPaused = false;
+      var bgmWanted = false;
+      var bgmTimer = null;
+      var bgmStep = 0;
+      var bgmNextTime = 0;
+      var unlocked = false;
+
+      var BGM_BARS = [
+        { bass: 130.81, arp: [523.25, 659.25, 783.99, 987.77, 783.99, 659.25, 523.25, 783.99] },
+        { bass: 110.00, arp: [440.00, 523.25, 659.25, 783.99, 659.25, 523.25, 440.00, 659.25] },
+        { bass: 174.61, arp: [523.25, 698.46, 880.00, 1046.50, 880.00, 698.46, 523.25, 880.00] },
+        { bass: 196.00, arp: [587.33, 783.99, 987.77, 1174.66, 987.77, 783.99, 659.25, 783.99] }
+      ];
+
+      function configureAudioSession() {
+        try {
+          if (navigator.audioSession && navigator.audioSession.type !== 'playback') {
+            navigator.audioSession.type = 'playback';
+          }
+        } catch (e) {}
+      }
+
+      function ensureCtx() {
         if (!audioCtx) {
           var Ctx = window.AudioContext || window.webkitAudioContext;
-          if (Ctx) audioCtx = new Ctx();
-        }
-        if (audioCtx && audioCtx.state === 'suspended') {
-          audioCtx.resume().catch(function () {});
+          if (!Ctx) return null;
+          audioCtx = new Ctx({ latencyHint: 'interactive' });
+
+          var comp = audioCtx.createDynamicsCompressor();
+          comp.threshold.setValueAtTime(-12, audioCtx.currentTime);
+          comp.knee.setValueAtTime(16, audioCtx.currentTime);
+          comp.ratio.setValueAtTime(6, audioCtx.currentTime);
+          comp.attack.setValueAtTime(0.003, audioCtx.currentTime);
+          comp.release.setValueAtTime(0.12, audioCtx.currentTime);
+
+          masterGain = audioCtx.createGain();
+          masterGain.gain.setValueAtTime(isMuted ? 0 : 0.92, audioCtx.currentTime);
+
+          sfxBus = audioCtx.createGain();
+          sfxBus.gain.setValueAtTime(1.0, audioCtx.currentTime);
+
+          bgmBus = audioCtx.createGain();
+          bgmBus.gain.setValueAtTime(0.28, audioCtx.currentTime);
+
+          sfxBus.connect(comp);
+          bgmBus.connect(comp);
+          comp.connect(masterGain);
+          masterGain.connect(audioCtx.destination);
         }
         return audioCtx;
       }
 
-      var noiseBuffer = null;
+      function unlockMobileAudio() {
+        configureAudioSession();
+        var ctx = ensureCtx();
+        if (!ctx) return;
+        if (ctx.state !== 'running') {
+          ctx.resume().catch(function () {});
+        }
+        if (!unlocked) {
+          try {
+            var silent = ctx.createBuffer(1, 1, ctx.sampleRate);
+            var src = ctx.createBufferSource();
+            var sg = ctx.createGain();
+            sg.gain.value = 0;
+            src.buffer = silent;
+            src.connect(sg);
+            sg.connect(ctx.destination);
+            src.start(0);
+            unlocked = true;
+          } catch (e) {}
+        }
+        syncBgm();
+      }
+
+      ['pointerdown', 'touchstart', 'touchend', 'mousedown', 'keydown'].forEach(function (evt) {
+        window.addEventListener(evt, unlockMobileAudio, { capture: true, passive: true });
+      });
+      document.addEventListener('visibilitychange', function () {
+        syncBgm();
+      });
+
       function getNoiseBuffer(ctx) {
         if (noiseBuffer && noiseBuffer.sampleRate === ctx.sampleRate) {
           return noiseBuffer;
         }
-        var len = Math.floor(ctx.sampleRate * 0.35);
+        var len = Math.floor(ctx.sampleRate * 0.4);
         var buf = ctx.createBuffer(1, len, ctx.sampleRate);
         var data = buf.getChannelData(0);
         for (var i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
@@ -63,7 +125,7 @@
         return buf;
       }
 
-      function playNoise(ctx, start, dur, filterType, f1, f2, peak, q) {
+      function playNoise(ctx, bus, start, dur, filterType, f1, f2, peak, q) {
         var src = ctx.createBufferSource();
         src.buffer = getNoiseBuffer(ctx);
         var filter = ctx.createBiquadFilter();
@@ -72,17 +134,17 @@
         filter.frequency.setValueAtTime(f1, start);
         filter.frequency.exponentialRampToValueAtTime(Math.max(40, f2), start + dur);
         var gain = ctx.createGain();
-        gain.gain.setValueAtTime(0.001, start);
-        gain.gain.linearRampToValueAtTime(peak, start + Math.min(0.014, dur * 0.28));
-        gain.gain.exponentialRampToValueAtTime(0.001, start + dur);
+        gain.gain.setValueAtTime(0.0008, start);
+        gain.gain.linearRampToValueAtTime(peak, start + Math.min(0.012, dur * 0.25));
+        gain.gain.exponentialRampToValueAtTime(0.0008, start + dur);
         src.connect(filter);
         filter.connect(gain);
-        gain.connect(ctx.destination);
+        gain.connect(bus);
         src.start(start);
         src.stop(start + dur);
       }
 
-      function playBirdChirp(ctx, start, dur, f1, f2, f3, peak, wave, vibHz, vibDepth) {
+      function playTone(ctx, bus, start, dur, f1, f2, f3, peak, wave, vibHz, vibDepth) {
         var osc = ctx.createOscillator();
         var gain = ctx.createGain();
         osc.type = wave || 'sine';
@@ -103,75 +165,177 @@
           lfo.stop(start + dur);
         }
 
-        gain.gain.setValueAtTime(0.001, start);
-        gain.gain.linearRampToValueAtTime(peak, start + Math.min(0.012, dur * 0.25));
-        gain.gain.exponentialRampToValueAtTime(0.001, start + dur);
+        gain.gain.setValueAtTime(0.0008, start);
+        gain.gain.linearRampToValueAtTime(peak, start + Math.min(0.01, dur * 0.22));
+        gain.gain.exponentialRampToValueAtTime(0.0008, start + dur);
         osc.connect(gain);
-        gain.connect(ctx.destination);
+        gain.connect(bus);
         osc.start(start);
         osc.stop(start + dur);
       }
 
-      function playBirdSquawk(ctx, start, dur, f1, f2, peak) {
+      function playMarimba(ctx, bus, start, dur, freq, peak) {
+        playTone(ctx, bus, start, dur, freq * 0.995, freq * 1.004, freq, peak, 'sine');
+        playTone(ctx, bus, start, dur * 0.45, freq * 2, freq * 2, freq * 2, peak * 0.26, 'triangle');
+      }
+
+      function playSquawk(ctx, bus, start, dur, f1, f2, peak) {
         var osc = ctx.createOscillator();
         var filter = ctx.createBiquadFilter();
         var gain = ctx.createGain();
         osc.type = 'sawtooth';
         osc.frequency.setValueAtTime(f1, start);
-        osc.frequency.exponentialRampToValueAtTime(Math.max(60, f1 * 1.18), start + dur * 0.22);
+        osc.frequency.exponentialRampToValueAtTime(Math.max(60, f1 * 1.12), start + dur * 0.2);
         osc.frequency.exponentialRampToValueAtTime(Math.max(60, f2), start + dur);
-
         filter.type = 'bandpass';
-        filter.Q.setValueAtTime(3.2, start);
+        filter.Q.setValueAtTime(2.6, start);
         filter.frequency.setValueAtTime(f1 * 1.65, start);
-        filter.frequency.exponentialRampToValueAtTime(Math.max(180, f2 * 1.4), start + dur);
-
-        gain.gain.setValueAtTime(0.001, start);
-        gain.gain.linearRampToValueAtTime(peak, start + 0.016);
-        gain.gain.exponentialRampToValueAtTime(0.001, start + dur);
-
+        filter.frequency.exponentialRampToValueAtTime(Math.max(180, f2 * 1.35), start + dur);
+        gain.gain.setValueAtTime(0.0008, start);
+        gain.gain.linearRampToValueAtTime(peak, start + 0.012);
+        gain.gain.exponentialRampToValueAtTime(0.0008, start + dur);
         osc.connect(filter);
         filter.connect(gain);
-        gain.connect(ctx.destination);
+        gain.connect(bus);
         osc.start(start);
         osc.stop(start + dur);
       }
 
-      window.flappySfx = function (type) {
-        var ctx = getCtx();
-        if (!ctx) return;
+      function stopBgm() {
+        if (bgmTimer !== null) {
+          window.clearInterval(bgmTimer);
+          bgmTimer = null;
+        }
+      }
+
+      function scheduleBgm() {
+        if (!audioCtx || !bgmBus || audioCtx.state !== 'running' || isMuted || isPaused) return;
+        var stepDur = 0.25;
+        while (bgmNextTime < audioCtx.currentTime + 0.28) {
+          var bar = BGM_BARS[Math.floor(bgmStep / 8) % BGM_BARS.length];
+          var stepInBar = bgmStep % 8;
+          var t = bgmNextTime;
+          playMarimba(audioCtx, bgmBus, t, 0.2, bar.arp[stepInBar], stepInBar % 2 === 0 ? 0.14 : 0.095);
+          if (stepInBar === 0 || stepInBar === 3 || stepInBar === 4 || stepInBar === 7) {
+            playTone(audioCtx, bgmBus, t, 0.22, bar.bass, bar.bass, bar.bass * 0.99, (stepInBar === 0 || stepInBar === 4) ? 0.18 : 0.12, 'sine');
+          }
+          if (stepInBar % 2 === 1) {
+            playNoise(audioCtx, bgmBus, t, 0.035, 'bandpass', 5400, 7400, 0.03, 2.0);
+          }
+          bgmNextTime += stepDur;
+          bgmStep = (bgmStep + 1) % (BGM_BARS.length * 8);
+        }
+      }
+
+      function syncBgm() {
+        var shouldPlay = bgmWanted && !isMuted && !isPaused && !document.hidden;
+        if (!shouldPlay) {
+          stopBgm();
+          return;
+        }
+        var ctx = ensureCtx();
+        if (!ctx || ctx.state !== 'running') return;
+        if (bgmTimer !== null) return;
+        bgmNextTime = ctx.currentTime + 0.05;
+        bgmTimer = window.setInterval(scheduleBgm, 90);
+      }
+
+      function triggerSfx(ctx, type, pitch) {
+        if (!sfxBus || isMuted) return;
+        var p = pitch || 1.0;
         var now = ctx.currentTime;
-        var jitter = 0.95 + Math.random() * 0.1;
+        var jitter = 0.97 + Math.random() * 0.06;
 
         if (type === 'flap') {
-          playNoise(ctx, now, 0.07, 'bandpass', 920, 2400, 0.065, 1.5);
-          playBirdChirp(ctx, now + 0.006, 0.085, 880 * jitter, 1680 * jitter, 1180 * jitter, 0.09, 'sine');
-          playBirdChirp(ctx, now + 0.01, 0.065, 1760 * jitter, 2450 * jitter, 1920 * jitter, 0.028, 'triangle');
+          playNoise(ctx, sfxBus, now, 0.075, 'bandpass', 850, 2600, 0.14, 1.6);
+          playMarimba(ctx, sfxBus, now + 0.004, 0.085, 987.77 * p * jitter, 0.24);
+          playTone(ctx, sfxBus, now + 0.008, 0.065, 1396.91 * p * jitter, 2093 * p * jitter, 1661.22 * p * jitter, 0.09, 'triangle');
         } else if (type === 'score') {
-          playBirdChirp(ctx, now, 0.065, 1220, 1760, 1480, 0.085, 'sine');
-          playBirdChirp(ctx, now + 0.07, 0.13, 1480, 2220, 1980, 0.1, 'sine', 26, 35);
-          playBirdChirp(ctx, now + 0.072, 0.11, 2960, 3520, 3120, 0.025, 'triangle');
-        } else if (type === 'heart') {
-          var notes = [1046.5, 1318.5, 1568.0, 2093.0];
+          playMarimba(ctx, sfxBus, now, 0.09, 987.77 * p, 0.24);
+          playMarimba(ctx, sfxBus, now + 0.068, 0.19, 1318.51 * p, 0.30);
+          playTone(ctx, sfxBus, now + 0.07, 0.14, 2637.02 * p, 2680 * p, 2637.02 * p, 0.08, 'sine', 18, 14);
+        } else if (type === 'milestone') {
+          var notes = [659.25, 830.61, 987.77, 1318.51];
           for (var i = 0; i < notes.length; i++) {
-            var f = notes[i];
-            playBirdChirp(ctx, now + i * 0.048, 0.11, f * 0.9, f * 1.12, f, 0.08, 'sine', 28, 28);
+            var f = notes[i] * p;
+            playMarimba(ctx, sfxBus, now + i * 0.065, i === 3 ? 0.25 : 0.12, f, 0.25);
+            playTone(ctx, sfxBus, now + i * 0.065, 0.12, f * 2, f * 2.02, f * 2, 0.07, 'sine');
+          }
+        } else if (type === 'heart') {
+          var hnotes = [1046.5, 1318.51, 1567.98, 2093.0];
+          for (var j = 0; j < hnotes.length; j++) {
+            playMarimba(ctx, sfxBus, now + j * 0.052, 0.14, hnotes[j] * p, 0.22);
           }
         } else if (type === 'shield') {
-          playNoise(ctx, now, 0.14, 'bandpass', 1700, 620, 0.075, 1.4);
-          playBirdSquawk(ctx, now, 0.14, 920, 540, 0.08);
-          playBirdChirp(ctx, now + 0.07, 0.14, 1180, 1860, 1520, 0.075, 'sine', 32, 40);
+          playNoise(ctx, sfxBus, now, 0.15, 'bandpass', 2200, 620, 0.18, 1.5);
+          playSquawk(ctx, sfxBus, now, 0.14, 783.99 * p, 987.77 * p, 0.18);
+          playMarimba(ctx, sfxBus, now + 0.05, 0.24, 1567.98 * p, 0.24);
+          playTone(ctx, sfxBus, now + 0.06, 0.22, 1975.53 * p, 2349.32 * p, 1975.53 * p, 0.09, 'sine', 24, 18);
         } else if (type === 'hit') {
-          playNoise(ctx, now, 0.13, 'lowpass', 1650, 220, 0.16);
-          playBirdChirp(ctx, now, 0.14, 165, 120, 42, 0.18, 'sine');
-          playBirdSquawk(ctx, now + 0.01, 0.17, 740, 290, 0.13);
+          playNoise(ctx, sfxBus, now, 0.13, 'lowpass', 1850, 190, 0.34);
+          playTone(ctx, sfxBus, now, 0.16, 175, 120, 42, 0.42, 'sine');
+          playSquawk(ctx, sfxBus, now + 0.008, 0.18, 620 * p, 195 * p, 0.22);
         } else if (type === 'die') {
-          playBirdChirp(ctx, now + 0.03, 0.34, 1420, 1180, 290, 0.095, 'sine', 18, 55);
-          playBirdChirp(ctx, now + 0.35, 0.075, 520, 460, 260, 0.055, 'triangle');
+          var dnotes = [[0.02, 880.0, 0.11], [0.11, 698.46, 0.11], [0.20, 587.33, 0.12], [0.29, 440.0, 0.18]];
+          for (var k = 0; k < dnotes.length; k++) {
+            var df = dnotes[k][1] * p;
+            playTone(ctx, sfxBus, now + dnotes[k][0], dnotes[k][2], df * 1.03, df, df * 0.88, 0.21, 'triangle', 14, 10);
+            playTone(ctx, sfxBus, now + dnotes[k][0], dnotes[k][2], df * 0.5, df * 0.48, df * 0.42, 0.11, 'sine');
+          }
         } else if (type === 'swoosh') {
-          playNoise(ctx, now, 0.1, 'bandpass', 520, 1950, 0.05, 1.3);
-          playBirdChirp(ctx, now + 0.01, 0.07, 920 * jitter, 1380 * jitter, 1140 * jitter, 0.048, 'sine');
+          playNoise(ctx, sfxBus, now, 0.11, 'bandpass', 520, 2100, 0.12, 1.4);
+          playMarimba(ctx, sfxBus, now + 0.01, 0.08, 880 * p * jitter, 0.16);
         }
+      }
+
+      window.flappySfx = function (type, pitch) {
+        if (isMuted) return;
+        configureAudioSession();
+        var ctx = ensureCtx();
+        if (!ctx) return;
+        if (ctx.state !== 'running') {
+          ctx.resume().then(function () {
+            syncBgm();
+            triggerSfx(ctx, type, pitch);
+          }).catch(function () {});
+          return;
+        }
+        syncBgm();
+        triggerSfx(ctx, type, pitch);
+      };
+
+      window.flappySetMuted = function (muted) {
+        isMuted = !!muted;
+        if (masterGain && audioCtx) {
+          masterGain.gain.setTargetAtTime(isMuted ? 0 : 0.92, audioCtx.currentTime, 0.015);
+        }
+        syncBgm();
+      };
+
+      window.flappySetPaused = function (paused) {
+        isPaused = !!paused;
+        syncBgm();
+      };
+
+      window.flappyStartBgm = function () {
+        bgmStep = 0;
+        bgmWanted = true;
+        isPaused = false;
+        configureAudioSession();
+        var ctx = ensureCtx();
+        if (!ctx) return;
+        if (ctx.state !== 'running') {
+          ctx.resume().then(syncBgm).catch(function () {});
+          return;
+        }
+        syncBgm();
+      };
+
+      window.flappyStopBgm = function () {
+        bgmWanted = false;
+        isPaused = false;
+        bgmStep = 0;
+        stopBgm();
       };
 
       window.flappyGetBestScore = function () {

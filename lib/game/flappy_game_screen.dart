@@ -17,7 +17,7 @@ class FlappyGameScreen extends StatefulWidget {
 }
 
 class _FlappyGameScreenState extends State<FlappyGameScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late final Ticker _ticker;
   final FocusNode _focusNode = FocusNode();
   final SoundController _sfx = SoundController();
@@ -105,13 +105,26 @@ class _FlappyGameScreenState extends State<FlappyGameScreen>
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _bestScore = _sfx.loadBestScore();
+    _sfx.init();
     _cloudsList = _createDefaultClouds();
     _ticker = createTicker(_onTick)..start();
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _sfx.setPaused(_phase == GamePhase.paused);
+    } else {
+      _sfx.setPaused(true);
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _sfx.dispose();
     _ticker.dispose();
     _focusNode.dispose();
     super.dispose();
@@ -331,7 +344,11 @@ class _FlappyGameScreenState extends State<FlappyGameScreen>
         if (!pipe.passed && pipe.x + GamePhysics.pipeWidth / 2 < _birdX) {
           pipe.passed = true;
           _incrementScore(1);
-          _sfx.play(GameSfx.score);
+          _sfx.play(
+            _score > 0 && _score % 10 == 0
+                ? GameSfx.milestone
+                : GameSfx.score,
+          );
         }
       }
       _pipes.removeWhere((p) => p.x < -GamePhysics.pipeWidth - 40);
@@ -423,6 +440,7 @@ class _FlappyGameScreenState extends State<FlappyGameScreen>
   void _finalizeGameOver() {
     _phase = GamePhase.gameOver;
     _gameOverCooldown = 0.35;
+    _sfx.stopBgm();
   }
 
   void _incrementScore(int points) {
@@ -656,6 +674,7 @@ class _FlappyGameScreenState extends State<FlappyGameScreen>
   }
 
   void _triggerCrash({required bool hitGround}) {
+    _sfx.stopBgm();
     _sfx.play(GameSfx.hit);
     _flashAlpha = 0.72;
     _shakeTimer = 0.22;
@@ -697,6 +716,8 @@ class _FlappyGameScreenState extends State<FlappyGameScreen>
       }
       return;
     }
+
+    final bool startedPlaying = _phase == GamePhase.ready;
 
     setState(() {
       if (_phase == GamePhase.ready) {
@@ -765,10 +786,14 @@ class _FlappyGameScreenState extends State<FlappyGameScreen>
         );
       }
     });
+    if (startedPlaying) {
+      _sfx.startBgm();
+    }
     _sfx.play(GameSfx.flap);
   }
 
   void _startNewRunImmediately() {
+    _sfx.stopBgm();
     _sfx.play(GameSfx.swoosh);
     setState(() {
       _phase = GamePhase.ready;
@@ -799,11 +824,13 @@ class _FlappyGameScreenState extends State<FlappyGameScreen>
   void _togglePause() {
     if (_phase == GamePhase.playing) {
       setState(() => _phase = GamePhase.paused);
+      _sfx.setPaused(true);
     } else if (_phase == GamePhase.paused) {
       setState(() {
         _phase = GamePhase.playing;
         _lastTick = null;
       });
+      _sfx.setPaused(false);
     }
     _focusNode.requestFocus();
   }
@@ -812,6 +839,9 @@ class _FlappyGameScreenState extends State<FlappyGameScreen>
     setState(() {
       _sfx.muted = !_sfx.muted;
     });
+    if (!_sfx.muted) {
+      _sfx.play(GameSfx.swoosh);
+    }
     _focusNode.requestFocus();
   }
 
@@ -1139,7 +1169,13 @@ class _FlappyGameScreenState extends State<FlappyGameScreen>
                 _BirdSkinSelector(
                   selected: _birdSkin,
                   onSelected: (BirdSkin skin) {
-                    _sfx.play(GameSfx.swoosh);
+                    final double pitch = switch (skin) {
+                      BirdSkin.skyCap => 1.0,
+                      BirdSkin.solarAce => 0.90,
+                      BirdSkin.emeraldJet => 1.12,
+                    };
+                    _sfx.setSkinPitch(pitch);
+                    _sfx.play(GameSfx.flap);
                     setState(() {
                       _birdSkin = skin;
                     });
