@@ -1,11 +1,9 @@
-import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
-import 'daily_challenge.dart';
 import 'game_config.dart';
 import 'game_state.dart';
 import 'pixel_sprites.dart';
@@ -21,7 +19,6 @@ class FlappyGameScreen extends StatefulWidget {
 class _FlappyGameScreenState extends State<FlappyGameScreen>
     with SingleTickerProviderStateMixin {
   late final Ticker _ticker;
-  Timer? _countdownTimer;
   final FocusNode _focusNode = FocusNode();
   final SoundController _sfx = SoundController();
   final math.Random _rng = math.Random();
@@ -78,14 +75,6 @@ class _FlappyGameScreenState extends State<FlappyGameScreen>
 
   bool _isNewBest = false;
 
-  bool? _isNewDailyBestVal;
-  bool get _isNewDailyBest => _isNewDailyBestVal ?? false;
-  set _isNewDailyBest(bool value) => _isNewDailyBestVal = value;
-
-  bool? _showLeaderboardVal;
-  bool get _showLeaderboard => _showLeaderboardVal ?? false;
-  set _showLeaderboard(bool value) => _showLeaderboardVal = value;
-
   double? _invulnTimerVal;
   double get _invulnTimer => _invulnTimerVal ?? 0.0;
   set _invulnTimer(double value) => _invulnTimerVal = value;
@@ -109,72 +98,20 @@ class _FlappyGameScreenState extends State<FlappyGameScreen>
 
   double? _lastGapY;
 
-  double? _prevBirdYVal;
-  double get _prevBirdY => _prevBirdYVal ?? _birdY;
-  set _prevBirdY(double value) => _prevBirdYVal = value;
-
   double? _trailEmitAccumVal;
   double get _trailEmitAccum => _trailEmitAccumVal ?? 0.0;
   set _trailEmitAccum(double value) => _trailEmitAccumVal = value;
-
-  String? _dailyDateKeyVal;
-  String get _dailyDateKey =>
-      _dailyDateKeyVal ??= DailyChallengeService.getDailyDateKey();
-  set _dailyDateKey(String value) => _dailyDateKeyVal = value;
-
-  DailyCourseProfile? _dailyCourseVal;
-  DailyCourseProfile get _dailyCourse =>
-      _dailyCourseVal ??= DailyChallengeService.getCourseProfile(_dailyDateKey);
-  set _dailyCourse(DailyCourseProfile value) => _dailyCourseVal = value;
-
-  DailyChallengeStorage? _dailyStorageVal;
-  DailyChallengeStorage get _dailyStorage =>
-      _dailyStorageVal ??= _sfx.loadDailyStorage(_dailyDateKey);
-  set _dailyStorage(DailyChallengeStorage value) => _dailyStorageVal = value;
-
-  SeededRng? _dailyRngVal;
-  SeededRng get _dailyRng => _dailyRngVal ??= SeededRng(_dailyCourse.seed);
-  set _dailyRng(SeededRng value) => _dailyRngVal = value;
-
-  int? _dailyRank;
-
-  String? _resetCountdownVal;
-  String get _resetCountdown =>
-      _resetCountdownVal ?? DailyChallengeService.getCountdownToReset();
-  set _resetCountdown(String value) => _resetCountdownVal = value;
 
   @override
   void initState() {
     super.initState();
     _bestScore = _sfx.loadBestScore();
     _cloudsList = _createDefaultClouds();
-    _dailyDateKey = DailyChallengeService.getDailyDateKey();
-    _dailyCourse = DailyChallengeService.getCourseProfile(_dailyDateKey);
-    _dailyStorage = _sfx.loadDailyStorage(_dailyDateKey);
-    _dailyRng = SeededRng(_dailyCourse.seed);
-    _resetCountdown = DailyChallengeService.getCountdownToReset();
     _ticker = createTicker(_onTick)..start();
-    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (!mounted) return;
-      final DateTime now = DateTime.now();
-      final String todayKey = DailyChallengeService.getDailyDateKey(now);
-      setState(() {
-        _resetCountdown = DailyChallengeService.getCountdownToReset(now);
-        if (todayKey != _dailyDateKey) {
-          _dailyDateKey = todayKey;
-          _dailyCourse = DailyChallengeService.getCourseProfile(todayKey);
-          _dailyStorage = _sfx.loadDailyStorage(todayKey);
-          _dailyRng = SeededRng(_dailyCourse.seed);
-          _dailyRank = null;
-          _isNewDailyBest = false;
-        }
-      });
-    });
   }
 
   @override
   void dispose() {
-    _countdownTimer?.cancel();
     _ticker.dispose();
     _focusNode.dispose();
     super.dispose();
@@ -193,11 +130,9 @@ class _FlappyGameScreenState extends State<FlappyGameScreen>
 
   double get _birdX => (_viewport.width * 0.26).clamp(84.0, 220.0);
 
-  double get _baseSpeed =>
-      _mode.isDaily ? _dailyCourse.pipeSpeed : _mode.pipeSpeed;
+  double get _baseSpeed => _mode.pipeSpeed;
 
-  double get _pipeSpacing =>
-      _mode.isDaily ? _dailyCourse.pipeSpacing : _mode.pipeSpacing;
+  double get _pipeSpacing => _mode.pipeSpacing;
 
   double get _currentSpeed {
     if (!_mode.accelerates) return _baseSpeed;
@@ -295,7 +230,6 @@ class _FlappyGameScreenState extends State<FlappyGameScreen>
       _birdY = _groundTop * 0.40 + math.sin(_elapsedTime * 5.0) * 9.0;
       _birdAngle = math.cos(_elapsedTime * 5.0) * 0.06;
       _wingPhase += dt * 11.0;
-      _prevBirdY = _birdY;
       return;
     }
 
@@ -381,7 +315,6 @@ class _FlappyGameScreenState extends State<FlappyGameScreen>
           }
         }
       }
-      _prevBirdY = _birdY;
 
       if (_birdVelocity < 90) {
         _birdAngle = (_birdAngle - dt * 6.5).clamp(-0.42, 1.32);
@@ -490,39 +423,6 @@ class _FlappyGameScreenState extends State<FlappyGameScreen>
   void _finalizeGameOver() {
     _phase = GamePhase.gameOver;
     _gameOverCooldown = 0.35;
-
-    if (_mode.isDaily) {
-      final DailyChallengeStorage current = _sfx.loadDailyStorage(_dailyDateKey);
-      final DailyRunEntry newRun = DailyRunEntry(
-        id: '${DateTime.now().millisecondsSinceEpoch}_${_rng.nextInt(9999)}',
-        score: _score,
-        heartsCollected: _heartsCollected,
-        skin: _birdSkin,
-        timestampMs: DateTime.now().millisecondsSinceEpoch,
-      );
-      final List<DailyRunEntry> updatedRuns = [newRun, ...current.runs]
-        ..sort((a, b) {
-          final int byScore = b.score.compareTo(a.score);
-          return byScore != 0
-              ? byScore
-              : b.timestampMs.compareTo(a.timestampMs);
-        });
-      final bool newDailyBest = _score > current.bestScore;
-      final DailyChallengeStorage updated = DailyChallengeStorage(
-        dateKey: _dailyDateKey,
-        bestScore: math.max(current.bestScore, _score),
-        attempts: current.attempts + 1,
-        runs: updatedRuns.take(10).toList(),
-      );
-      _sfx.saveDailyStorage(updated);
-      _dailyStorage = updated;
-      _isNewDailyBest = newDailyBest;
-
-      final List<DailyLeaderboardRow> rows =
-          DailyChallengeService.buildLeaderboard(updated);
-      final int idx = rows.indexWhere((r) => r.isPlayer && r.score == _score);
-      _dailyRank = idx >= 0 ? rows[idx].rank : null;
-    }
   }
 
   void _incrementScore(int points) {
@@ -636,51 +536,37 @@ class _FlappyGameScreenState extends State<FlappyGameScreen>
     }
   }
 
-  double _nextRandom() =>
-      _mode.isDaily ? _dailyRng.nextDouble() : _rng.nextDouble();
-
   void _spawnPipe(double x) {
     _pipesSpawnedCount += 1;
 
     final ObstacleKind kind;
-    if (_mode.isDaily) {
-      final double roll = _nextRandom();
-      if (_pipesSpawnedCount >= 2 && roll > 0.62) {
-        kind = ObstacleKind.hoverPropellerGate;
-      } else if (_pipesSpawnedCount >= 3 && roll > 0.34) {
-        kind = ObstacleKind.beaconTower;
-      } else {
-        kind = ObstacleKind.emeraldCylinder;
-      }
+    if (_pipesSpawnedCount >= 3 && _pipesSpawnedCount % 3 == 0) {
+      kind = ObstacleKind.hoverPropellerGate;
+    } else if (_pipesSpawnedCount >= 4 && _pipesSpawnedCount % 4 == 0) {
+      kind = ObstacleKind.beaconTower;
     } else {
-      if (_pipesSpawnedCount >= 3 && _pipesSpawnedCount % 3 == 0) {
-        kind = ObstacleKind.hoverPropellerGate;
-      } else if (_pipesSpawnedCount >= 4 && _pipesSpawnedCount % 4 == 0) {
-        kind = ObstacleKind.beaconTower;
-      } else {
-        kind = ObstacleKind.emeraldCylinder;
-      }
+      kind = ObstacleKind.emeraldCylinder;
     }
 
     final double hoverAmplitude =
         kind == ObstacleKind.hoverPropellerGate ? 20.0 : 0.0;
-    final double gap = _mode.isDaily ? _dailyCourse.pipeGap : _mode.pipeGap;
+    final double gap = _mode.pipeGap;
     final double margin = 68.0 + gap / 2 + hoverAmplitude;
     final double minY = margin;
     final double maxY = math.max(minY + 10.0, _groundTop - margin);
 
     double gapY;
     if (_lastGapY == null) {
-      gapY = minY + _nextRandom() * (maxY - minY);
+      gapY = minY + _rng.nextDouble() * (maxY - minY);
     } else {
       const double maxDelta = 155.0;
       final double lo = math.max(minY, _lastGapY! - maxDelta);
       final double hi = math.min(maxY, _lastGapY! + maxDelta);
-      gapY = lo + _nextRandom() * math.max(1.0, hi - lo);
+      gapY = lo + _rng.nextDouble() * math.max(1.0, hi - lo);
     }
     _lastGapY = gapY;
 
-    final double phase = _nextRandom() * math.pi * 2;
+    final double phase = _rng.nextDouble() * math.pi * 2;
     _pipes.add(
       PipePair(
         x: x,
@@ -698,7 +584,7 @@ class _FlappyGameScreenState extends State<FlappyGameScreen>
         HeartPickup(
           x: x + GamePhysics.pipeWidth / 2,
           baseY: gapY,
-          phase: _nextRandom() * math.pi * 2,
+          phase: _rng.nextDouble() * math.pi * 2,
         ),
       );
     }
@@ -803,7 +689,6 @@ class _FlappyGameScreenState extends State<FlappyGameScreen>
   }
 
   void _flap() {
-    if (_showLeaderboard) return;
     if (_phase == GamePhase.paused || _phase == GamePhase.dying) return;
 
     if (_phase == GamePhase.gameOver) {
@@ -815,13 +700,6 @@ class _FlappyGameScreenState extends State<FlappyGameScreen>
 
     setState(() {
       if (_phase == GamePhase.ready) {
-        if (_mode.isDaily) {
-          final String todayKey = DailyChallengeService.getDailyDateKey();
-          _dailyDateKey = todayKey;
-          _dailyCourse = DailyChallengeService.getCourseProfile(todayKey);
-          _dailyStorage = _sfx.loadDailyStorage(todayKey);
-          _dailyRng = SeededRng(_dailyCourse.seed);
-        }
         _phase = GamePhase.playing;
         _score = 0;
         _heartsCollected = 0;
@@ -829,13 +707,10 @@ class _FlappyGameScreenState extends State<FlappyGameScreen>
         _pipesSpawnedCount = 0;
         _invulnTimer = 0.0;
         _isNewBest = false;
-        _isNewDailyBest = false;
-        _dailyRank = null;
         _pipes.clear();
         _hearts.clear();
         _feedbacks.clear();
         _lastGapY = null;
-        _prevBirdY = _birdY;
         _trailEmitAccum = 0.0;
         _spawnPipe(math.max(_viewport.width * 0.85, _birdX + 340));
       }
@@ -896,12 +771,6 @@ class _FlappyGameScreenState extends State<FlappyGameScreen>
   void _startNewRunImmediately() {
     _sfx.play(GameSfx.swoosh);
     setState(() {
-      if (_mode.isDaily) {
-        final String todayKey = DailyChallengeService.getDailyDateKey();
-        _dailyDateKey = todayKey;
-        _dailyCourse = DailyChallengeService.getCourseProfile(todayKey);
-        _dailyRng = SeededRng(_dailyCourse.seed);
-      }
       _phase = GamePhase.ready;
       _score = 0;
       _heartsCollected = 0;
@@ -912,8 +781,6 @@ class _FlappyGameScreenState extends State<FlappyGameScreen>
       _hatBounce = 0.0;
       _scorePop = 0.0;
       _isNewBest = false;
-      _isNewDailyBest = false;
-      _dailyRank = null;
       _pipes.clear();
       _hearts.clear();
       _particles.clear();
@@ -922,7 +789,6 @@ class _FlappyGameScreenState extends State<FlappyGameScreen>
       _birdVelocity = 0.0;
       _birdAngle = 0.0;
       _birdY = _groundTop * 0.40;
-      _prevBirdY = _birdY;
       _trailEmitAccum = 0.0;
       _flashAlpha = 0.0;
       _shakeTimer = 0.0;
@@ -952,14 +818,6 @@ class _FlappyGameScreenState extends State<FlappyGameScreen>
   KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
     final LogicalKeyboardKey key = event.logicalKey;
-
-    if (_showLeaderboard) {
-      if (key == LogicalKeyboardKey.escape) {
-        setState(() => _showLeaderboard = false);
-        return KeyEventResult.handled;
-      }
-      return KeyEventResult.ignored;
-    }
 
     if (key == LogicalKeyboardKey.space ||
         key == LogicalKeyboardKey.arrowUp ||
@@ -1064,9 +922,7 @@ class _FlappyGameScreenState extends State<FlappyGameScreen>
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Text(
-                                _mode.isDaily
-                                    ? 'Daily · ${_dailyCourse.title}'
-                                    : _mode.label,
+                                _mode.label,
                                 style: const TextStyle(
                                   color: GameColors.brandNavy,
                                   fontSize: 13,
@@ -1155,14 +1011,6 @@ class _FlappyGameScreenState extends State<FlappyGameScreen>
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        if (_phase == GamePhase.ready) ...[
-                          _DailyBoardPillButton(
-                            onPressed: () {
-                              setState(() => _showLeaderboard = true);
-                            },
-                          ),
-                          const SizedBox(width: 8),
-                        ],
                         _HudIconButton(
                           tooltip: _sfx.muted ? 'Unmute Sound' : 'Mute Sound',
                           icon: _sfx.muted
@@ -1190,7 +1038,6 @@ class _FlappyGameScreenState extends State<FlappyGameScreen>
                 if (_phase == GamePhase.ready) _buildReadyOverlay(),
                 if (_phase == GamePhase.paused) _buildPausedOverlay(),
                 if (_phase == GamePhase.gameOver) _buildGameOverOverlay(),
-                if (_showLeaderboard) _buildDailyLeaderboardModal(),
               ],
             );
           },
@@ -1289,82 +1136,6 @@ class _FlappyGameScreenState extends State<FlappyGameScreen>
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                if (_mode.isDaily) ...[
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.95),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: GameColors.accentGold.withValues(alpha: 0.6),
-                        width: 1.5,
-                      ),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Color(0x33B45309),
-                          offset: Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              'TODAY · ${_dailyCourse.title.toUpperCase()}',
-                              style: const TextStyle(
-                                color: Color(0xFFB45309),
-                                fontSize: 11,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: 0.8,
-                              ),
-                            ),
-                            Text(
-                              'Best Today: ${_dailyStorage.bestScore} · Resets in $_resetCountdown',
-                              style: const TextStyle(
-                                color: GameColors.brandNavy,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(width: 12),
-                        Material(
-                          color: GameColors.accentGold,
-                          borderRadius: BorderRadius.circular(8),
-                          child: InkWell(
-                            onTap: () {
-                              setState(() => _showLeaderboard = true);
-                            },
-                            borderRadius: BorderRadius.circular(8),
-                            child: const Padding(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 8,
-                              ),
-                              child: Text(
-                                'Leaderboard',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w900,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                ],
                 _BirdSkinSelector(
                   selected: _birdSkin,
                   onSelected: (BirdSkin skin) {
@@ -1481,7 +1252,6 @@ class _FlappyGameScreenState extends State<FlappyGameScreen>
 
   Widget _buildGameOverOverlay() {
     final MedalTier medal = MedalTierConfig.fromScore(_score);
-    final bool showNewFlag = _mode.isDaily ? _isNewDailyBest : _isNewBest;
 
     return Container(
       color: GameColors.brandNavy.withValues(alpha: 0.34),
@@ -1507,9 +1277,7 @@ class _FlappyGameScreenState extends State<FlappyGameScreen>
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      _mode.isDaily
-                          ? 'Daily · ${_dailyCourse.title}'
-                          : '${_mode.label} · ${_birdSkin.label}',
+                      '${_mode.label} · ${_birdSkin.label}',
                       style: const TextStyle(
                         color: GameColors.accentSky,
                         fontSize: 12,
@@ -1581,7 +1349,7 @@ class _FlappyGameScreenState extends State<FlappyGameScreen>
                           Row(
                             mainAxisAlignment: MainAxisAlignment.end,
                             children: [
-                              if (showNewFlag)
+                              if (_isNewBest)
                                 Container(
                                   margin: const EdgeInsets.only(right: 6),
                                   padding: const EdgeInsets.symmetric(
@@ -1592,18 +1360,18 @@ class _FlappyGameScreenState extends State<FlappyGameScreen>
                                     color: GameColors.accentCoral,
                                     borderRadius: BorderRadius.circular(4),
                                   ),
-                                  child: Text(
-                                    _mode.isDaily ? 'NEW DAILY BEST' : 'NEW',
-                                    style: const TextStyle(
+                                  child: const Text(
+                                    'NEW',
+                                    style: TextStyle(
                                       color: Colors.white,
                                       fontSize: 10,
                                       fontWeight: FontWeight.w900,
                                     ),
                                   ),
                                 ),
-                              Text(
-                                _mode.isDaily ? 'DAILY BEST' : 'BEST',
-                                style: const TextStyle(
+                              const Text(
+                                'BEST',
+                                style: TextStyle(
                                   color: Color(0xFF64748B),
                                   fontSize: 11,
                                   fontWeight: FontWeight.w800,
@@ -1613,7 +1381,7 @@ class _FlappyGameScreenState extends State<FlappyGameScreen>
                             ],
                           ),
                           Text(
-                            '${_mode.isDaily ? _dailyStorage.bestScore : _bestScore}',
+                            '$_bestScore',
                             style: const TextStyle(
                               color: GameColors.brandNavy,
                               fontSize: 28,
@@ -1621,17 +1389,6 @@ class _FlappyGameScreenState extends State<FlappyGameScreen>
                               height: 1.1,
                             ),
                           ),
-                          if (_mode.isDaily && _dailyRank != null) ...[
-                            const SizedBox(height: 4),
-                            Text(
-                              "Today's Rank · #$_dailyRank",
-                              style: const TextStyle(
-                                color: Color(0xFFB45309),
-                                fontSize: 12,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ],
                           if (_mode.heartsEnabled) ...[
                             const SizedBox(height: 4),
                             Text(
@@ -1651,19 +1408,6 @@ class _FlappyGameScreenState extends State<FlappyGameScreen>
                 const SizedBox(height: 18),
                 Row(
                   children: [
-                    if (_mode.isDaily) ...[
-                      Expanded(
-                        child: _TactileButton(
-                          label: 'Daily Board',
-                          color: GameColors.accentGold,
-                          shadowColor: const Color(0xFFB45309),
-                          onPressed: () {
-                            setState(() => _showLeaderboard = true);
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                    ],
                     Expanded(
                       child: _TactileButton(
                         label: 'Play Again',
@@ -1679,244 +1423,6 @@ class _FlappyGameScreenState extends State<FlappyGameScreen>
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildDailyLeaderboardModal() {
-    final List<DailyLeaderboardRow> rows =
-        DailyChallengeService.buildLeaderboard(_dailyStorage);
-
-    return GestureDetector(
-      onTap: () => setState(() => _showLeaderboard = false),
-      child: Container(
-        color: GameColors.brandNavy.withValues(alpha: 0.45),
-        alignment: Alignment.center,
-        padding: const EdgeInsets.all(16),
-        child: GestureDetector(
-          onTap: () {},
-          child: _Modern3DCard(
-            width: 380,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'DAILY CHALLENGE · ${_dailyCourse.dateKey}',
-                            style: const TextStyle(
-                              color: GameColors.accentGold,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: 1.0,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            _dailyCourse.title,
-                            style: const TextStyle(
-                              color: GameColors.brandNavy,
-                              fontSize: 20,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            'Resets in $_resetCountdown · ${_dailyStorage.attempts} ${_dailyStorage.attempts == 1 ? 'attempt' : 'attempts'} today',
-                            style: const TextStyle(
-                              color: Color(0xFF64748B),
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    IconButton(
-                      onPressed: () =>
-                          setState(() => _showLeaderboard = false),
-                      icon: const Icon(
-                        Icons.close_rounded,
-                        color: GameColors.brandNavy,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                ConstrainedBox(
-                  constraints: const BoxConstraints(maxHeight: 260),
-                  child: ListView.separated(
-                    shrinkWrap: true,
-                    itemCount: rows.length,
-                    separatorBuilder: (_, _) => const SizedBox(height: 8),
-                    itemBuilder: (BuildContext context, int index) {
-                      final DailyLeaderboardRow row = rows[index];
-                      final Color bg = row.isPlayerBest
-                          ? const Color(0xFFFEF3C7)
-                          : row.isPlayer
-                              ? const Color(0xFFE0F2FE)
-                              : const Color(0xFFF8FAFC);
-                      final Color border = row.isPlayerBest
-                          ? GameColors.accentGold
-                          : row.isPlayer
-                              ? GameColors.accentSky
-                              : const Color(0xFFE2E8F0);
-                      final Color badgeBg = switch (row.rank) {
-                        1 => GameColors.accentGold,
-                        2 => const Color(0xFF94A3B8),
-                        3 => const Color(0xFFCD7F32),
-                        _ => const Color(0xFFE2E8F0),
-                      };
-                      return Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 10,
-                        ),
-                        decoration: BoxDecoration(
-                          color: bg,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: border),
-                        ),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 28,
-                              height: 28,
-                              alignment: Alignment.center,
-                              decoration: BoxDecoration(
-                                color: badgeBg,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                '#${row.rank}',
-                                style: TextStyle(
-                                  color: row.rank <= 3
-                                      ? Colors.white
-                                      : const Color(0xFF475569),
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w900,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    row.name,
-                                    style: const TextStyle(
-                                      color: GameColors.brandNavy,
-                                      fontSize: 12.5,
-                                      fontWeight: FontWeight.w900,
-                                    ),
-                                  ),
-                                  Text(
-                                    row.subtitle,
-                                    style: const TextStyle(
-                                      color: Color(0xFF64748B),
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Text(
-                              '${row.score}',
-                              style: const TextStyle(
-                                color: GameColors.brandNavy,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w900,
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-                ),
-                const SizedBox(height: 14),
-                _TactileButton(
-                  label: _mode.isDaily ? 'Keep Playing' : 'Play Daily Challenge',
-                  color: GameColors.accentGold,
-                  shadowColor: const Color(0xFFB45309),
-                  onPressed: () {
-                    setState(() => _showLeaderboard = false);
-                    if (!_mode.isDaily) {
-                      _mode = GameMode.dailyChallenge;
-                      _startNewRunImmediately();
-                    }
-                  },
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _DailyBoardPillButton extends StatelessWidget {
-  const _DailyBoardPillButton({required this.onPressed});
-
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white.withValues(alpha: 0.94),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
-          color: GameColors.panelBorder.withValues(alpha: 0.2),
-          width: 1.5,
-        ),
-      ),
-      child: InkWell(
-        onTap: onPressed,
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          height: 44,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x1E0F2744),
-                offset: Offset(0, 3),
-              ),
-            ],
-          ),
-          child: const Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.emoji_events_rounded,
-                color: GameColors.accentGold,
-                size: 20,
-              ),
-              SizedBox(width: 6),
-              Text(
-                'Daily Board',
-                style: TextStyle(
-                  color: GameColors.brandNavy,
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 class _OutlinedText extends StatelessWidget {
@@ -2179,8 +1685,7 @@ class _ModeSelector extends StatelessWidget {
         runSpacing: 4,
         children: GameMode.values.map((GameMode mode) {
           final bool active = mode == selected;
-          final Color activeColor =
-              mode.isDaily ? GameColors.accentGold : GameColors.accentSky;
+          const Color activeColor = GameColors.accentSky;
           return Material(
             color: active ? activeColor : Colors.transparent,
             borderRadius: BorderRadius.circular(8),

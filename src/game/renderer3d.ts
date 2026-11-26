@@ -184,34 +184,46 @@ function drawGroupSkyBrand(
   elapsedTime: number,
   worldScroll: number
 ): void {
-  const heroSize = Math.max(24, Math.min(44, width * 0.068));
-  const eyebrowSize = Math.max(11, Math.min(16, heroSize * 0.36));
+  const fontSize = Math.max(15.5, Math.min(28, width * 0.044));
+  const prefixText = "Let's Play with ";
+  const brandText = '2130 Group';
+
+  const prefixFont = `700 ${fontSize.toFixed(1)}px "Plus Jakarta Sans", "Outfit", system-ui, sans-serif`;
+  const brandFont = `900 ${(fontSize * 1.06).toFixed(1)}px "Outfit", "Plus Jakarta Sans", system-ui, sans-serif`;
 
   ctx.save();
-  ctx.textAlign = 'center';
+  ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
 
-  const heroFont = `900 ${heroSize.toFixed(1)}px "Outfit", "Plus Jakarta Sans", system-ui, sans-serif`;
-  const eyebrowFont = `700 ${eyebrowSize.toFixed(1)}px "Plus Jakarta Sans", "Outfit", system-ui, sans-serif`;
+  ctx.font = prefixFont;
+  const prefixWidth = ctx.measureText(prefixText).width;
 
-  ctx.font = heroFont;
-  const heroWidth = ctx.measureText('2130 GROUP').width + 44;
-  const span = width + heroWidth + 120;
+  ctx.font = brandFont;
+  const brandWidth = ctx.measureText(brandText).width;
+
+  const totalTextWidth = prefixWidth + brandWidth;
+  const blockWidth = totalTextWidth + 32;
+
+  const span = width + blockWidth + 120;
   const progress =
-    (elapsedTime * 22 + worldScroll * 0.035 + span * 0.5) % span;
-  const driftX = width + heroWidth * 0.5 + 60 - progress;
+    (elapsedTime * 24 + worldScroll * 0.035 + span * 0.5) % span;
+  const driftX = width + blockWidth * 0.5 + 60 - progress;
 
   const baseSkyY = Math.max(122, Math.min(groundTop * 0.36, groundTop - 185));
-  const floatY = Math.sin(elapsedTime * 1.15) * 7.5;
-  const breathScale = 1 + 0.015 * Math.sin(elapsedTime * 1.5);
+  const floatY = Math.sin(elapsedTime * 1.2) * 7.5;
+  const breathScale = 1 + 0.014 * Math.sin(elapsedTime * 1.5);
 
   const edgePad = 70;
-  const leftFade = Math.max(0, Math.min(1, (driftX + heroWidth * 0.35) / edgePad));
+  const leftFade = Math.max(
+    0,
+    Math.min(1, (driftX + totalTextWidth * 0.4) / edgePad)
+  );
   const rightFade = Math.max(
     0,
-    Math.min(1, (width - driftX + heroWidth * 0.35) / edgePad)
+    Math.min(1, (width - driftX + totalTextWidth * 0.4) / edgePad)
   );
-  const fadeAlpha = (0.76 + 0.1 * Math.sin(elapsedTime * 1.4)) * Math.min(leftFade, rightFade);
+  const fadeAlpha =
+    (0.78 + 0.1 * Math.sin(elapsedTime * 1.4)) * Math.min(leftFade, rightFade);
   if (fadeAlpha <= 0.01) {
     ctx.restore();
     return;
@@ -221,56 +233,57 @@ function drawGroupSkyBrand(
   ctx.scale(breathScale, breathScale);
   ctx.globalAlpha = fadeAlpha;
 
-  const eyebrowY = -heroSize * 0.62;
-  const heroY = heroSize * 0.12;
-  const ruleY = heroSize * 0.68;
+  const startX = -totalTextWidth * 0.5;
+  const brandStartX = startX + prefixWidth;
+  const textY = 0;
+  const ruleY = fontSize * 0.78;
 
-  // Eyebrow: clean tracked "LET'S PLAY WITH"
-  ctx.font = eyebrowFont;
-  const ctxWithSpacing = ctx as CanvasRenderingContext2D & {
-    letterSpacing?: string;
-  };
-  if ('letterSpacing' in ctxWithSpacing) {
-    ctxWithSpacing.letterSpacing = '3.6px';
-  }
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.78)';
-  ctx.fillText("LET'S PLAY WITH", 0, eyebrowY + 1);
-  ctx.fillStyle = 'rgba(15, 39, 68, 0.78)';
-  ctx.fillText("LET'S PLAY WITH", 0, eyebrowY);
-
-  // Hero: "2130 GROUP" with animated cool sapphire -> teal -> gold gradient & shimmer
-  ctx.font = heroFont;
-  if ('letterSpacing' in ctxWithSpacing) {
-    ctxWithSpacing.letterSpacing = '2px';
-  }
-
-  // Soft white rim + subtle drop shadow for clean readability over clouds & sky
+  // Soft drop shadow + crisp white halo for the full continuous line
   ctx.save();
   ctx.shadowColor = 'rgba(15, 39, 68, 0.18)';
-  ctx.shadowBlur = 10;
-  ctx.shadowOffsetY = 3;
-  ctx.lineWidth = 3.5;
+  ctx.shadowBlur = 9;
+  ctx.shadowOffsetY = 2.5;
+  ctx.lineWidth = 3.2;
   ctx.lineJoin = 'round';
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.78)';
-  ctx.strokeText('2130 GROUP', 0, heroY);
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.82)';
+
+  ctx.font = prefixFont;
+  ctx.strokeText(prefixText, startX, textY);
+  ctx.font = brandFont;
+  ctx.strokeText(brandText, brandStartX, textY);
   ctx.restore();
 
-  const halfW = heroWidth * 0.65;
-  const sweep = (Math.sin(elapsedTime * 1.25) * 0.5 + 0.5) * 0.55;
-  const grad = ctx.createLinearGradient(-halfW, heroY - 12, halfW, heroY + 14);
+  // Prefix fill: cool deep ocean slate-blue
+  ctx.font = prefixFont;
+  ctx.fillStyle = '#0F3A66';
+  ctx.fillText(prefixText, startX, textY);
+
+  // Brand fill: animated sapphire -> cyan -> teal -> gold gradient
+  ctx.font = brandFont;
+  const sweep = (Math.sin(elapsedTime * 1.25) * 0.5 + 0.5) * 0.5;
+  const grad = ctx.createLinearGradient(
+    brandStartX,
+    textY - fontSize * 0.45,
+    brandStartX + brandWidth,
+    textY + fontSize * 0.45
+  );
   grad.addColorStop(0, '#1E3A8A');
-  grad.addColorStop(Math.max(0.08, 0.22 + sweep * 0.4), '#0284C7');
-  grad.addColorStop(Math.min(0.86, 0.48 + sweep * 0.5), '#0D9488');
-  grad.addColorStop(Math.min(0.96, 0.72 + sweep * 0.35), '#F59E0B');
+  grad.addColorStop(Math.max(0.08, 0.25 + sweep * 0.35), '#0284C7');
+  grad.addColorStop(Math.min(0.86, 0.52 + sweep * 0.42), '#0D9488');
+  grad.addColorStop(Math.min(0.96, 0.76 + sweep * 0.3), '#F59E0B');
   grad.addColorStop(1, '#1D4ED8');
-
   ctx.fillStyle = grad;
-  ctx.fillText('2130 GROUP', 0, heroY);
+  ctx.fillText(brandText, brandStartX, textY);
 
-  // Subtle passing specular light band over the letters
+  // Travelling specular light band gliding smoothly across the continuous line
   const glintCenter = ((elapsedTime * 0.42) % 1.8) - 0.4;
   if (glintCenter >= -0.2 && glintCenter <= 1.2) {
-    const sheenGrad = ctx.createLinearGradient(-halfW, 0, halfW, 0);
+    const sheenGrad = ctx.createLinearGradient(
+      startX,
+      0,
+      startX + totalTextWidth,
+      0
+    );
     const s0 = Math.max(0, Math.min(1, glintCenter - 0.14));
     const s1 = Math.max(0, Math.min(1, glintCenter));
     const s2 = Math.max(0, Math.min(1, glintCenter + 0.14));
@@ -278,11 +291,14 @@ function drawGroupSkyBrand(
     sheenGrad.addColorStop(s1, 'rgba(255, 255, 255, 0.52)');
     sheenGrad.addColorStop(s2, 'rgba(255, 255, 255, 0)');
     ctx.fillStyle = sheenGrad;
-    ctx.fillText('2130 GROUP', 0, heroY);
+    ctx.font = prefixFont;
+    ctx.fillText(prefixText, startX, textY);
+    ctx.font = brandFont;
+    ctx.fillText(brandText, brandStartX, textY);
   }
 
-  // Sleek animated horizontal accent rule underneath
-  const lineHalf = Math.min(width * 0.26, heroWidth * 0.46);
+  // Sleek animated horizontal accent rule underneath the continuous line
+  const lineHalf = Math.min(width * 0.36, totalTextWidth * 0.52);
   const lineGrad = ctx.createLinearGradient(-lineHalf, ruleY, lineHalf, ruleY);
   lineGrad.addColorStop(0, 'rgba(2, 132, 199, 0)');
   lineGrad.addColorStop(0.28, 'rgba(2, 132, 199, 0.55)');
@@ -297,15 +313,12 @@ function drawGroupSkyBrand(
   ctx.lineTo(lineHalf, ruleY);
   ctx.stroke();
 
-  const orbX = Math.sin(elapsedTime * 1.45) * (lineHalf * 0.62);
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+  const orbX = Math.sin(elapsedTime * 1.45) * (lineHalf * 0.65);
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.92)';
   ctx.beginPath();
-  ctx.arc(orbX, ruleY, 2.6, 0, Math.PI * 2);
+  ctx.arc(orbX, ruleY, 2.5, 0, Math.PI * 2);
   ctx.fill();
 
-  if ('letterSpacing' in ctxWithSpacing) {
-    ctxWithSpacing.letterSpacing = '0px';
-  }
   ctx.restore();
 }
 
