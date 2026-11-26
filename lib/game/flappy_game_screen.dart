@@ -1423,6 +1423,8 @@ class _FlappyGameScreenState extends State<FlappyGameScreen>
           ),
         ],
       ),
+    );
+  }
 }
 
 class _OutlinedText extends StatelessWidget {

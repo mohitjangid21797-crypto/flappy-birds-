@@ -1,0 +1,353 @@
+PS C:\Users\mohit\Placement Preparation\Development\Projects\flappy_birds_game> flutter analyze
+Analyzing flappy_birds_game...                                          
+
+  error - The method '_OutlinedText' isn't defined for the type '_FlappyGameScreenState'. Try correcting the name to the name of an existing method, or
+         defining a method named '_OutlinedText' - lib\game\flappy_game_screen.dart:995:34 - undefined_method
+  error - The method '_HudIconButton' isn't defined for the type '_FlappyGameScreenState'. Try correcting the name to the name of an existing method,
+         or defining a method named '_HudIconButton' - lib\game\flappy_game_screen.dart:1014:25 - undefined_method
+  error - The method '_HudIconButton' isn't defined for the type '_FlappyGameScreenState'. Try correcting the name to the name of an existing method,
+         or defining a method named '_HudIconButton' - lib\game\flappy_game_screen.dart:1024:27 - undefined_method
+  error - The name '_OutlinedText' isn't a class. Try correcting the name to match an existing class - lib\game\flappy_game_screen.dart:1105:33 -
+         creation_with_non_type
+  error - The method '_BirdSkinSelector' isn't defined for the type '_FlappyGameScreenState'. Try correcting the name to the name of an existing
+         method, or defining a method named '_BirdSkinSelector' - lib\game\flappy_game_screen.dart:1139:17 - undefined_method
+  error - The method '_ModeSelector' isn't defined for the type '_FlappyGameScreenState'. Try correcting the name to the name of an existing method, or
+         defining a method named '_ModeSelector' - lib\game\flappy_game_screen.dart:1150:17 - undefined_method
+  error - The method '_Modern3DCard' isn't defined for the type '_FlappyGameScreenState'. Try correcting the name to the name of an existing method, or
+         defining a method named '_Modern3DCard' - lib\game\flappy_game_screen.dart:1212:14 - undefined_method
+  error - The method '_TactileButton' isn't defined for the type '_FlappyGameScreenState'. Try correcting the name to the name of an existing method,
+         or defining a method named '_TactileButton' - lib\game\flappy_game_screen.dart:1229:26 - undefined_method
+  error - The method '_TactileButton' isn't defined for the type '_FlappyGameScreenState'. Try correcting the name to the name of an existing method,
+         or defining a method named '_TactileButton' - lib\game\flappy_game_screen.dart:1238:26 - undefined_method
+  error - The name '_OutlinedText' isn't a class. Try correcting the name to match an existing class - lib\game\flappy_game_screen.dart:1263:17 -
+         creation_with_non_type
+  error - The method '_Modern3DCard' isn't defined for the type '_FlappyGameScreenState'. Try correcting the name to the name of an existing method, or
+         defining a method named '_Modern3DCard' - lib\game\flappy_game_screen.dart:1271:11 - undefined_method
+  error - The method '_MedalBadge' isn't defined for the type '_FlappyGameScreenState'. Try correcting the name to the name of an existing method, or
+         defining a method named '_MedalBadge' - lib\game\flappy_game_screen.dart:1313:25 - undefined_method
+  error - The method '_TactileButton' isn't defined for the type '_FlappyGameScreenState'. Try correcting the name to the name of an existing method,
+         or defining a method named '_TactileButton' - lib\game\flappy_game_screen.dart:1412:30 - undefined_method
+  error - Expected to find ';' - lib\game\flappy_game_screen.dart:1425:8 - expected_token
+  error - Expected to find ')' - lib\game\flappy_game_screen.dart:1426:1 - expected_token
+  error - Classes can't be declared inside other classes. Try moving the class to the top-level - lib\game\flappy_game_screen.dart:1428:1 -
+         class_in_class
+  error - Expected a class member. Try placing this code inside a class member - lib\game\flappy_game_screen.dart:1428:21 - expected_class_member
+   info - Missing type annotation. Try adding a type annotation - lib\game\flappy_game_screen.dart:1428:29 - strict_top_level_inference
+   info - The variable name 'StatelessWidget' isn't a lowerCamelCase identifier. Try changing the name to follow the lowerCamelCase style -
+          lib\game\flappy_game_screen.dart:1428:29 - non_constant_identifier_names
+  error - Methods must have an explicit list of parameters. Try adding a parameter list - lib\game\flappy_game_screen.dart:1428:29 -
+         missing_method_parameters
+  error - The name '_OutlinedText' isn't a class. Try correcting the name to match an existing class - lib\game\flappy_game_screen.dart:1429:9 -
+         creation_with_non_type
+   info - 'required' is deprecated and shouldn't be used. In Dart 2.12 and later, use the built-in `required` keyword to mark a named parameter as
+          required. Try replacing the use of the deprecated member with the replacement - lib\game\flappy_game_screen.dart:1430:5 -
+          deprecated_member_use
+  error - Expected to find ',' - lib\game\flappy_game_screen.dart:1430:14 - expected_token
+  error - The getter 'text' isn't defined for the type '_FlappyGameScreenState'. Try importing the library that defines 'text', correcting the name to
+         the name of an existing getter, or defining a getter or field named 'text' - lib\game\flappy_game_screen.dart:1430:19 - undefined_getter
+   info - 'required' is deprecated and shouldn't be used. In Dart 2.12 and later, use the built-in `required` keyword to mark a named parameter as
+          required. Try replacing the use of the deprecated member with the replacement - lib\game\flappy_game_screen.dart:1431:5 -
+          deprecated_member_use
+  error - Expected to find ',' - lib\game\flappy_game_screen.dart:1431:14 - expected_token
+  error - The getter 'fontSize' isn't defined for the type '_FlappyGameScreenState'. Try importing the library that defines 'fontSize', correcting the
+         name to the name of an existing getter, or defining a getter or field named 'fontSize' - lib\game\flappy_game_screen.dart:1431:19 -
+         undefined_getter
+   info - 'required' is deprecated and shouldn't be used. In Dart 2.12 and later, use the built-in `required` keyword to mark a named parameter as
+          required. Try replacing the use of the deprecated member with the replacement - lib\game\flappy_game_screen.dart:1432:5 -
+          deprecated_member_use
+  error - Expected to find ',' - lib\game\flappy_game_screen.dart:1432:14 - expected_token
+  error - The getter 'strokeWidth' isn't defined for the type '_FlappyGameScreenState'. Try importing the library that defines 'strokeWidth',
+         correcting the name to the name of an existing getter, or defining a getter or field named 'strokeWidth' -
+         lib\game\flappy_game_screen.dart:1432:19 - undefined_getter
+   info - 'required' is deprecated and shouldn't be used. In Dart 2.12 and later, use the built-in `required` keyword to mark a named parameter as
+          required. Try replacing the use of the deprecated member with the replacement - lib\game\flappy_game_screen.dart:1433:5 -
+          deprecated_member_use
+  error - Expected to find ',' - lib\game\flappy_game_screen.dart:1433:14 - expected_token
+  error - The getter 'fillColor' isn't defined for the type '_FlappyGameScreenState'. Try importing the library that defines 'fillColor', correcting
+         the name to the name of an existing getter, or defining a getter or field named 'fillColor' - lib\game\flappy_game_screen.dart:1433:19 -
+         undefined_getter
+   info - 'required' is deprecated and shouldn't be used. In Dart 2.12 and later, use the built-in `required` keyword to mark a named parameter as
+          required. Try replacing the use of the deprecated member with the replacement - lib\game\flappy_game_screen.dart:1434:5 -
+          deprecated_member_use
+  error - Expected to find ',' - lib\game\flappy_game_screen.dart:1434:14 - expected_token
+  error - The getter 'strokeColor' isn't defined for the type '_FlappyGameScreenState'. Try importing the library that defines 'strokeColor',
+         correcting the name to the name of an existing getter, or defining a getter or field named 'strokeColor' -
+         lib\game\flappy_game_screen.dart:1434:19 - undefined_getter
+warning - The annotation 'override' can only be used on fields, getters, methods, or setters - lib\game\flappy_game_screen.dart:1443:4 -
+       invalid_annotation_target
+warning - The declaration 'build' isn't referenced. Try removing the declaration of 'build' - lib\game\flappy_game_screen.dart:1444:10 - unused_element
+  error - The final variable 'fontSize' can't be read because it's potentially unassigned at this point. Ensure that it is assigned on necessary
+         execution paths - lib\game\flappy_game_screen.dart:1446:17 - read_potentially_unassigned_final
+  error - The final variable 'text' can't be read because it's potentially unassigned at this point. Ensure that it is assigned on necessary execution
+         paths - lib\game\flappy_game_screen.dart:1457:13 - read_potentially_unassigned_final
+  error - The final variable 'strokeWidth' can't be read because it's potentially unassigned at this point. Ensure that it is assigned on necessary
+         execution paths - lib\game\flappy_game_screen.dart:1462:33 - read_potentially_unassigned_final
+  error - The final variable 'text' can't be read because it's potentially unassigned at this point. Ensure that it is assigned on necessary execution
+         paths - lib\game\flappy_game_screen.dart:1469:11 - read_potentially_unassigned_final
+  error - The final variable 'strokeWidth' can't be read because it's potentially unassigned at this point. Ensure that it is assigned on necessary
+         execution paths - lib\game\flappy_game_screen.dart:1474:31 - read_potentially_unassigned_final
+  error - The final variable 'strokeColor' can't be read because it's potentially unassigned at this point. Ensure that it is assigned on necessary
+         execution paths - lib\game\flappy_game_screen.dart:1476:25 - read_potentially_unassigned_final
+  error - The final variable 'text' can't be read because it's potentially unassigned at this point. Ensure that it is assigned on necessary execution
+         paths - lib\game\flappy_game_screen.dart:1480:11 - read_potentially_unassigned_final
+  error - The final variable 'fillColor' can't be read because it's potentially unassigned at this point. Ensure that it is assigned on necessary
+         execution paths - lib\game\flappy_game_screen.dart:1482:39 - read_potentially_unassigned_final
+  error - Classes can't be declared inside other classes. Try moving the class to the top-level - lib\game\flappy_game_screen.dart:1489:1 -
+         class_in_class
+  error - Expected a class member. Try placing this code inside a class member - lib\game\flappy_game_screen.dart:1489:22 - expected_class_member
+   info - Missing type annotation. Try adding a type annotation - lib\game\flappy_game_screen.dart:1489:30 - strict_top_level_inference
+   info - The variable name 'StatefulWidget' isn't a lowerCamelCase identifier. Try changing the name to follow the lowerCamelCase style -
+          lib\game\flappy_game_screen.dart:1489:30 - non_constant_identifier_names
+  error - Methods must have an explicit list of parameters. Try adding a parameter list - lib\game\flappy_game_screen.dart:1489:30 -
+         missing_method_parameters
+  error - The name '_HudIconButton' isn't a class. Try correcting the name to match an existing class - lib\game\flappy_game_screen.dart:1490:9 -
+         creation_with_non_type
+   info - 'required' is deprecated and shouldn't be used. In Dart 2.12 and later, use the built-in `required` keyword to mark a named parameter as
+          required. Try replacing the use of the deprecated member with the replacement - lib\game\flappy_game_screen.dart:1491:5 -
+          deprecated_member_use
+  error - Expected to find ',' - lib\game\flappy_game_screen.dart:1491:14 - expected_token
+  error - The getter 'tooltip' isn't defined for the type '_FlappyGameScreenState'. Try importing the library that defines 'tooltip', correcting the
+         name to the name of an existing getter, or defining a getter or field named 'tooltip' - lib\game\flappy_game_screen.dart:1491:19 -
+         undefined_getter
+   info - 'required' is deprecated and shouldn't be used. In Dart 2.12 and later, use the built-in `required` keyword to mark a named parameter as
+          required. Try replacing the use of the deprecated member with the replacement - lib\game\flappy_game_screen.dart:1492:5 -
+          deprecated_member_use
+  error - Expected to find ',' - lib\game\flappy_game_screen.dart:1492:14 - expected_token
+  error - The getter 'icon' isn't defined for the type '_FlappyGameScreenState'. Try importing the library that defines 'icon', correcting the name to
+         the name of an existing getter, or defining a getter or field named 'icon' - lib\game\flappy_game_screen.dart:1492:19 - undefined_getter
+   info - 'required' is deprecated and shouldn't be used. In Dart 2.12 and later, use the built-in `required` keyword to mark a named parameter as
+          required. Try replacing the use of the deprecated member with the replacement - lib\game\flappy_game_screen.dart:1493:5 -
+          deprecated_member_use
+  error - Expected to find ',' - lib\game\flappy_game_screen.dart:1493:14 - expected_token
+  error - The getter 'onPressed' isn't defined for the type '_FlappyGameScreenState'. Try importing the library that defines 'onPressed', correcting
+         the name to the name of an existing getter, or defining a getter or field named 'onPressed' - lib\game\flappy_game_screen.dart:1493:19 -
+         undefined_getter
+warning - The value of the local variable 'tooltip' isn't used. Try removing the variable or using it - lib\game\flappy_game_screen.dart:1496:16 -
+       unused_local_variable
+warning - The value of the local variable 'icon' isn't used. Try removing the variable or using it - lib\game\flappy_game_screen.dart:1497:18 -
+       unused_local_variable
+warning - The value of the local variable 'onPressed' isn't used. Try removing the variable or using it - lib\game\flappy_game_screen.dart:1498:22 -
+       unused_local_variable
+warning - The annotation 'override' can only be used on fields, getters, methods, or setters - lib\game\flappy_game_screen.dart:1500:4 -
+       invalid_annotation_target
+  error - Undefined class 'State'. Try changing the name to the name of an existing class, or creating a class with the name 'State' -
+         lib\game\flappy_game_screen.dart:1501:3 - undefined_class
+  error - The name '_HudIconButton' isn't a type, so it can't be used as a type argument. Try correcting the name to an existing type, or defining a
+         type named '_HudIconButton' - lib\game\flappy_game_screen.dart:1501:9 - non_type_as_type_argument
+warning - The declaration 'createState' isn't referenced. Try removing the declaration of 'createState' - lib\game\flappy_game_screen.dart:1501:25 -
+       unused_element
+  error - The method '_HudIconButtonState' isn't defined for the type '_FlappyGameScreenState'. Try correcting the name to the name of an existing
+         method, or defining a method named '_HudIconButtonState' - lib\game\flappy_game_screen.dart:1501:42 - undefined_method
+  error - Classes can't be declared inside other classes. Try moving the class to the top-level - lib\game\flappy_game_screen.dart:1504:1 -
+         class_in_class
+  error - Expected a class member. Try placing this code inside a class member - lib\game\flappy_game_screen.dart:1504:27 - expected_class_member
+   info - Missing type annotation. Try adding a type annotation - lib\game\flappy_game_screen.dart:1504:35 - strict_top_level_inference
+   info - The variable name 'State' isn't a lowerCamelCase identifier. Try changing the name to follow the lowerCamelCase style -
+          lib\game\flappy_game_screen.dart:1504:35 - non_constant_identifier_names
+  error - Methods must have an explicit list of parameters. Try adding a parameter list - lib\game\flappy_game_screen.dart:1504:35 -
+         missing_method_parameters
+  error - A function body must be provided. Try adding a function body - lib\game\flappy_game_screen.dart:1505:5 - missing_function_body
+  error - Expected a class member. Try placing this code inside a class member - lib\game\flappy_game_screen.dart:1505:5 - expected_class_member
+   info - Missing type annotation. Try adding a type annotation - lib\game\flappy_game_screen.dart:1505:10 - strict_top_level_inference
+   info - The variable name 'SingleTickerProviderStateMixin' isn't a lowerCamelCase identifier. Try changing the name to follow the lowerCamelCase
+          style - lib\game\flappy_game_screen.dart:1505:10 - non_constant_identifier_names
+  error - Methods must have an explicit list of parameters. Try adding a parameter list - lib\game\flappy_game_screen.dart:1505:10 -
+         missing_method_parameters
+   info - The local variable '_controller' starts with an underscore. Try renaming the variable to not start with an underscore -
+          lib\game\flappy_game_screen.dart:1506:34 - no_leading_underscores_for_local_identifiers
+   info - The local variable '_scale' starts with an underscore. Try renaming the variable to not start with an underscore -
+          lib\game\flappy_game_screen.dart:1511:32 - no_leading_underscores_for_local_identifiers
+warning - The annotation 'override' can only be used on fields, getters, methods, or setters - lib\game\flappy_game_screen.dart:1529:4 -
+       invalid_annotation_target
+warning - The declaration 'dispose' isn't referenced. Try removing the declaration of 'dispose' - lib\game\flappy_game_screen.dart:1530:8 -
+       unused_element
+   info - The local variable '_handleTap' starts with an underscore. Try renaming the variable to not start with an underscore -
+          lib\game\flappy_game_screen.dart:1535:8 - no_leading_underscores_for_local_identifiers
+  error - The method 'onPressed' isn't defined for the type 'FlappyGameScreen'. Try correcting the name to the name of an existing method, or defining
+         a method named 'onPressed' - lib\game\flappy_game_screen.dart:1537:12 - undefined_method
+warning - The annotation 'override' can only be used on fields, getters, methods, or setters - lib\game\flappy_game_screen.dart:1540:4 -
+       invalid_annotation_target
+warning - The declaration 'build' isn't referenced. Try removing the declaration of 'build' - lib\game\flappy_game_screen.dart:1541:10 - unused_element
+  error - The getter 'tooltip' isn't defined for the type 'FlappyGameScreen'. Try importing the library that defines 'tooltip', correcting the name to
+         the name of an existing getter, or defining a getter or field named 'tooltip' - lib\game\flappy_game_screen.dart:1545:25 - undefined_getter
+  error - The getter 'icon' isn't defined for the type 'FlappyGameScreen'. Try importing the library that defines 'icon', correcting the name to the
+         name of an existing getter, or defining a getter or field named 'icon' - lib\game\flappy_game_screen.dart:1571:24 - undefined_getter
+  error - Classes can't be declared inside other classes. Try moving the class to the top-level - lib\game\flappy_game_screen.dart:1583:1 -
+         class_in_class
+  error - Expected a class member. Try placing this code inside a class member - lib\game\flappy_game_screen.dart:1583:25 - expected_class_member
+   info - Missing type annotation. Try adding a type annotation - lib\game\flappy_game_screen.dart:1583:33 - strict_top_level_inference
+   info - The variable name 'StatelessWidget' isn't a lowerCamelCase identifier. Try changing the name to follow the lowerCamelCase style -
+          lib\game\flappy_game_screen.dart:1583:33 - non_constant_identifier_names
+  error - Methods must have an explicit list of parameters. Try adding a parameter list - lib\game\flappy_game_screen.dart:1583:33 -
+         missing_method_parameters
+  error - The name 'StatelessWidget' is already defined. Try renaming one of the declarations - lib\game\flappy_game_screen.dart:1583:33 -
+         duplicate_definition
+  error - The name '_BirdSkinSelector' isn't a class. Try correcting the name to match an existing class - lib\game\flappy_game_screen.dart:1584:9 -
+         creation_with_non_type
+   info - 'required' is deprecated and shouldn't be used. In Dart 2.12 and later, use the built-in `required` keyword to mark a named parameter as
+          required. Try replacing the use of the deprecated member with the replacement - lib\game\flappy_game_screen.dart:1585:5 -
+          deprecated_member_use
+  error - Expected to find ',' - lib\game\flappy_game_screen.dart:1585:14 - expected_token
+  error - The getter 'selected' isn't defined for the type '_FlappyGameScreenState'. Try importing the library that defines 'selected', correcting the
+         name to the name of an existing getter, or defining a getter or field named 'selected' - lib\game\flappy_game_screen.dart:1585:19 -
+         undefined_getter
+   info - 'required' is deprecated and shouldn't be used. In Dart 2.12 and later, use the built-in `required` keyword to mark a named parameter as
+          required. Try replacing the use of the deprecated member with the replacement - lib\game\flappy_game_screen.dart:1586:5 -
+          deprecated_member_use
+  error - Expected to find ',' - lib\game\flappy_game_screen.dart:1586:14 - expected_token
+  error - The getter 'onSelected' isn't defined for the type '_FlappyGameScreenState'. Try importing the library that defines 'onSelected', correcting
+         the name to the name of an existing getter, or defining a getter or field named 'onSelected' - lib\game\flappy_game_screen.dart:1586:19 -
+         undefined_getter
+warning - The annotation 'override' can only be used on fields, getters, methods, or setters - lib\game\flappy_game_screen.dart:1592:4 -
+       invalid_annotation_target
+warning - The declaration 'build' isn't referenced. Try removing the declaration of 'build' - lib\game\flappy_game_screen.dart:1593:10 - unused_element
+  error - The final variable 'selected' can't be read because it's potentially unassigned at this point. Ensure that it is assigned on necessary
+         execution paths - lib\game\flappy_game_screen.dart:1615:39 - read_potentially_unassigned_final
+  error - The final variable 'onSelected' can't be read because it's potentially unassigned at this point. Ensure that it is assigned on necessary
+         execution paths - lib\game\flappy_game_screen.dart:1620:28 - read_potentially_unassigned_final
+  error - Classes can't be declared inside other classes. Try moving the class to the top-level - lib\game\flappy_game_screen.dart:1655:1 -
+         class_in_class
+  error - Expected a class member. Try placing this code inside a class member - lib\game\flappy_game_screen.dart:1655:21 - expected_class_member
+   info - Missing type annotation. Try adding a type annotation - lib\game\flappy_game_screen.dart:1655:29 - strict_top_level_inference
+   info - The variable name 'StatelessWidget' isn't a lowerCamelCase identifier. Try changing the name to follow the lowerCamelCase style -
+          lib\game\flappy_game_screen.dart:1655:29 - non_constant_identifier_names
+  error - Methods must have an explicit list of parameters. Try adding a parameter list - lib\game\flappy_game_screen.dart:1655:29 -
+         missing_method_parameters
+  error - The name 'StatelessWidget' is already defined. Try renaming one of the declarations - lib\game\flappy_game_screen.dart:1655:29 -
+         duplicate_definition
+  error - The name '_ModeSelector' isn't a class. Try correcting the name to match an existing class - lib\game\flappy_game_screen.dart:1656:9 -
+         creation_with_non_type
+   info - 'required' is deprecated and shouldn't be used. In Dart 2.12 and later, use the built-in `required` keyword to mark a named parameter as
+          required. Try replacing the use of the deprecated member with the replacement - lib\game\flappy_game_screen.dart:1657:5 -
+          deprecated_member_use
+  error - Expected to find ',' - lib\game\flappy_game_screen.dart:1657:14 - expected_token
+  error - The getter 'selected' isn't defined for the type '_FlappyGameScreenState'. Try importing the library that defines 'selected', correcting the
+         name to the name of an existing getter, or defining a getter or field named 'selected' - lib\game\flappy_game_screen.dart:1657:19 -
+         undefined_getter
+   info - 'required' is deprecated and shouldn't be used. In Dart 2.12 and later, use the built-in `required` keyword to mark a named parameter as
+          required. Try replacing the use of the deprecated member with the replacement - lib\game\flappy_game_screen.dart:1658:5 -
+          deprecated_member_use
+  error - Expected to find ',' - lib\game\flappy_game_screen.dart:1658:14 - expected_token
+  error - The getter 'onSelected' isn't defined for the type '_FlappyGameScreenState'. Try importing the library that defines 'onSelected', correcting
+         the name to the name of an existing getter, or defining a getter or field named 'onSelected' - lib\game\flappy_game_screen.dart:1658:19 -
+         undefined_getter
+warning - The annotation 'override' can only be used on fields, getters, methods, or setters - lib\game\flappy_game_screen.dart:1664:4 -
+       invalid_annotation_target
+warning - The declaration 'build' isn't referenced. Try removing the declaration of 'build' - lib\game\flappy_game_screen.dart:1665:10 - unused_element
+  error - The final variable 'selected' can't be read because it's potentially unassigned at this point. Ensure that it is assigned on necessary
+         execution paths - lib\game\flappy_game_screen.dart:1687:39 - read_potentially_unassigned_final
+  error - The final variable 'onSelected' can't be read because it's potentially unassigned at this point. Ensure that it is assigned on necessary
+         execution paths - lib\game\flappy_game_screen.dart:1693:28 - read_potentially_unassigned_final
+  error - Classes can't be declared inside other classes. Try moving the class to the top-level - lib\game\flappy_game_screen.dart:1715:1 -
+         class_in_class
+  error - Expected a class member. Try placing this code inside a class member - lib\game\flappy_game_screen.dart:1715:21 - expected_class_member
+   info - Missing type annotation. Try adding a type annotation - lib\game\flappy_game_screen.dart:1715:29 - strict_top_level_inference
+   info - The variable name 'StatelessWidget' isn't a lowerCamelCase identifier. Try changing the name to follow the lowerCamelCase style -
+          lib\game\flappy_game_screen.dart:1715:29 - non_constant_identifier_names
+  error - Methods must have an explicit list of parameters. Try adding a parameter list - lib\game\flappy_game_screen.dart:1715:29 -
+         missing_method_parameters
+  error - The name 'StatelessWidget' is already defined. Try renaming one of the declarations - lib\game\flappy_game_screen.dart:1715:29 -
+         duplicate_definition
+  error - The name '_Modern3DCard' isn't a class. Try correcting the name to match an existing class - lib\game\flappy_game_screen.dart:1716:9 -
+         creation_with_non_type
+   info - 'required' is deprecated and shouldn't be used. In Dart 2.12 and later, use the built-in `required` keyword to mark a named parameter as
+          required. Try replacing the use of the deprecated member with the replacement - lib\game\flappy_game_screen.dart:1717:5 -
+          deprecated_member_use
+  error - Expected to find ',' - lib\game\flappy_game_screen.dart:1717:14 - expected_token
+  error - The getter 'width' isn't defined for the type '_FlappyGameScreenState'. Try importing the library that defines 'width', correcting the name
+         to the name of an existing getter, or defining a getter or field named 'width' - lib\game\flappy_game_screen.dart:1717:19 - undefined_getter
+   info - 'required' is deprecated and shouldn't be used. In Dart 2.12 and later, use the built-in `required` keyword to mark a named parameter as
+          required. Try replacing the use of the deprecated member with the replacement - lib\game\flappy_game_screen.dart:1718:5 -
+          deprecated_member_use
+  error - Expected to find ',' - lib\game\flappy_game_screen.dart:1718:14 - expected_token
+  error - The getter 'child' isn't defined for the type '_FlappyGameScreenState'. Try importing the library that defines 'child', correcting the name
+         to the name of an existing getter, or defining a getter or field named 'child' - lib\game\flappy_game_screen.dart:1718:19 - undefined_getter
+warning - The annotation 'override' can only be used on fields, getters, methods, or setters - lib\game\flappy_game_screen.dart:1724:4 -
+       invalid_annotation_target
+warning - The declaration 'build' isn't referenced. Try removing the declaration of 'build' - lib\game\flappy_game_screen.dart:1725:10 - unused_element
+  error - The final variable 'width' can't be read because it's potentially unassigned at this point. Ensure that it is assigned on necessary execution
+         paths - lib\game\flappy_game_screen.dart:1727:14 - read_potentially_unassigned_final
+  error - The final variable 'child' can't be read because it's potentially unassigned at this point. Ensure that it is assigned on necessary execution
+         paths - lib\game\flappy_game_screen.dart:1748:14 - read_potentially_unassigned_final
+  error - Classes can't be declared inside other classes. Try moving the class to the top-level - lib\game\flappy_game_screen.dart:1753:1 -
+         class_in_class
+  error - Expected a class member. Try placing this code inside a class member - lib\game\flappy_game_screen.dart:1753:22 - expected_class_member
+   info - Missing type annotation. Try adding a type annotation - lib\game\flappy_game_screen.dart:1753:30 - strict_top_level_inference
+   info - The variable name 'StatelessWidget' isn't a lowerCamelCase identifier. Try changing the name to follow the lowerCamelCase style -
+          lib\game\flappy_game_screen.dart:1753:30 - non_constant_identifier_names
+  error - Methods must have an explicit list of parameters. Try adding a parameter list - lib\game\flappy_game_screen.dart:1753:30 -
+         missing_method_parameters
+  error - The name 'StatelessWidget' is already defined. Try renaming one of the declarations - lib\game\flappy_game_screen.dart:1753:30 -
+         duplicate_definition
+  error - The name '_TactileButton' isn't a class. Try correcting the name to match an existing class - lib\game\flappy_game_screen.dart:1754:9 -
+         creation_with_non_type
+   info - 'required' is deprecated and shouldn't be used. In Dart 2.12 and later, use the built-in `required` keyword to mark a named parameter as
+          required. Try replacing the use of the deprecated member with the replacement - lib\game\flappy_game_screen.dart:1755:5 -
+          deprecated_member_use
+  error - Expected to find ',' - lib\game\flappy_game_screen.dart:1755:14 - expected_token
+  error - The getter 'label' isn't defined for the type '_FlappyGameScreenState'. Try importing the library that defines 'label', correcting the name
+         to the name of an existing getter, or defining a getter or field named 'label' - lib\game\flappy_game_screen.dart:1755:19 - undefined_getter
+   info - 'required' is deprecated and shouldn't be used. In Dart 2.12 and later, use the built-in `required` keyword to mark a named parameter as
+          required. Try replacing the use of the deprecated member with the replacement - lib\game\flappy_game_screen.dart:1756:5 -
+          deprecated_member_use
+  error - Expected to find ',' - lib\game\flappy_game_screen.dart:1756:14 - expected_token
+  error - The getter 'color' isn't defined for the type '_FlappyGameScreenState'. Try importing the library that defines 'color', correcting the name
+         to the name of an existing getter, or defining a getter or field named 'color' - lib\game\flappy_game_screen.dart:1756:19 - undefined_getter
+   info - 'required' is deprecated and shouldn't be used. In Dart 2.12 and later, use the built-in `required` keyword to mark a named parameter as
+          required. Try replacing the use of the deprecated member with the replacement - lib\game\flappy_game_screen.dart:1757:5 -
+          deprecated_member_use
+  error - Expected to find ',' - lib\game\flappy_game_screen.dart:1757:14 - expected_token
+  error - The getter 'shadowColor' isn't defined for the type '_FlappyGameScreenState'. Try importing the library that defines 'shadowColor',
+         correcting the name to the name of an existing getter, or defining a getter or field named 'shadowColor' -
+         lib\game\flappy_game_screen.dart:1757:19 - undefined_getter
+   info - 'required' is deprecated and shouldn't be used. In Dart 2.12 and later, use the built-in `required` keyword to mark a named parameter as
+          required. Try replacing the use of the deprecated member with the replacement - lib\game\flappy_game_screen.dart:1758:5 -
+          deprecated_member_use
+  error - Expected to find ',' - lib\game\flappy_game_screen.dart:1758:14 - expected_token
+  error - The getter 'onPressed' isn't defined for the type '_FlappyGameScreenState'. Try importing the library that defines 'onPressed', correcting
+         the name to the name of an existing getter, or defining a getter or field named 'onPressed' - lib\game\flappy_game_screen.dart:1758:19 -
+         undefined_getter
+warning - The annotation 'override' can only be used on fields, getters, methods, or setters - lib\game\flappy_game_screen.dart:1766:4 -
+       invalid_annotation_target
+warning - The declaration 'build' isn't referenced. Try removing the declaration of 'build' - lib\game\flappy_game_screen.dart:1767:10 - unused_element
+  error - The final variable 'color' can't be read because it's potentially unassigned at this point. Ensure that it is assigned on necessary execution
+         paths - lib\game\flappy_game_screen.dart:1769:14 - read_potentially_unassigned_final
+  error - The final variable 'onPressed' can't be read because it's potentially unassigned at this point. Ensure that it is assigned on necessary
+         execution paths - lib\game\flappy_game_screen.dart:1772:16 - read_potentially_unassigned_final
+  error - The final variable 'shadowColor' can't be read because it's potentially unassigned at this point. Ensure that it is assigned on necessary
+         execution paths - lib\game\flappy_game_screen.dart:1781:24 - read_potentially_unassigned_final
+  error - The final variable 'label' can't be read because it's potentially unassigned at this point. Ensure that it is assigned on necessary execution
+         paths - lib\game\flappy_game_screen.dart:1787:13 - read_potentially_unassigned_final
+  error - Classes can't be declared inside other classes. Try moving the class to the top-level - lib\game\flappy_game_screen.dart:1801:1 -
+         class_in_class
+  error - Expected a class member. Try placing this code inside a class member - lib\game\flappy_game_screen.dart:1801:19 - expected_class_member
+   info - Missing type annotation. Try adding a type annotation - lib\game\flappy_game_screen.dart:1801:27 - strict_top_level_inference
+   info - The variable name 'StatelessWidget' isn't a lowerCamelCase identifier. Try changing the name to follow the lowerCamelCase style -
+          lib\game\flappy_game_screen.dart:1801:27 - non_constant_identifier_names
+  error - Methods must have an explicit list of parameters. Try adding a parameter list - lib\game\flappy_game_screen.dart:1801:27 -
+         missing_method_parameters
+  error - The name 'StatelessWidget' is already defined. Try renaming one of the declarations - lib\game\flappy_game_screen.dart:1801:27 -
+         duplicate_definition
+  error - The name '_MedalBadge' isn't a class. Try correcting the name to match an existing class - lib\game\flappy_game_screen.dart:1802:9 -
+         creation_with_non_type
+   info - 'required' is deprecated and shouldn't be used. In Dart 2.12 and later, use the built-in `required` keyword to mark a named parameter as
+          required. Try replacing the use of the deprecated member with the replacement - lib\game\flappy_game_screen.dart:1802:22 -
+          deprecated_member_use
+  error - Expected to find ',' - lib\game\flappy_game_screen.dart:1802:31 - expected_token
+  error - The getter 'tier' isn't defined for the type '_FlappyGameScreenState'. Try importing the library that defines 'tier', correcting the name to
+         the name of an existing getter, or defining a getter or field named 'tier' - lib\game\flappy_game_screen.dart:1802:36 - undefined_getter
+warning - The annotation 'override' can only be used on fields, getters, methods, or setters - lib\game\flappy_game_screen.dart:1806:4 -
+       invalid_annotation_target
+warning - The declaration 'build' isn't referenced. Try removing the declaration of 'build' - lib\game\flappy_game_screen.dart:1807:10 - unused_element
+  error - The final variable 'tier' can't be read because it's potentially unassigned at this point. Ensure that it is assigned on necessary execution
+         paths - lib\game\flappy_game_screen.dart:1810:13 - read_potentially_unassigned_final
+  error - The final variable 'tier' can't be read because it's potentially unassigned at this point. Ensure that it is assigned on necessary execution
+         paths - lib\game\flappy_game_screen.dart:1835:18 - read_potentially_unassigned_final
+  error - The final variable 'tier' can't be read because it's potentially unassigned at this point. Ensure that it is assigned on necessary execution
+         paths - lib\game\flappy_game_screen.dart:1846:19 - read_potentially_unassigned_final
+  error - The final variable 'tier' can't be read because it's potentially unassigned at this point. Ensure that it is assigned on necessary execution
+         paths - lib\game\flappy_game_screen.dart:1854:14 - read_potentially_unassigned_final
+  error - Expected to find '}' - lib\game\flappy_game_screen.dart:1868:1 - expected_token
+
+182 issues found. (ran in 2.6s)
+PS C:\Users\mohit\Placement Preparation\D
