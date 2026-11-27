@@ -133,6 +133,7 @@ export function App() {
     lastGapY: null as number | null,
     prevBirdY: 240,
     trailEmitAccum: 0,
+    bokehAlpha: 0,
   });
 
   const syncUi = useCallback(() => {
@@ -238,6 +239,7 @@ export function App() {
     s.birdY = groundTop * 0.4;
     s.prevBirdY = s.birdY;
     s.trailEmitAccum = 0;
+    s.bokehAlpha = 0;
     s.flashAlpha = 0;
     s.shakeTimer = 0;
     syncUi();
@@ -541,6 +543,9 @@ export function App() {
 
       if (s.phase !== 'paused') {
         s.elapsedTime += dt;
+        const targetBokeh = s.phase === 'playing' ? 1 : 0;
+        s.bokehAlpha +=
+          (targetBokeh - s.bokehAlpha) * Math.min(1, dt * 2.6);
         if (s.invulnTimer > 0) s.invulnTimer = Math.max(0, s.invulnTimer - dt);
         if (s.flapSquash > 0) s.flapSquash = Math.max(0, s.flapSquash - dt * 5.2);
         if (s.hatBounce > 0) s.hatBounce = Math.max(0, s.hatBounce - dt * 4);
@@ -930,6 +935,8 @@ export function App() {
             flashAlpha: s.flashAlpha,
             shakeX: s.shakeX,
             shakeY: s.shakeY,
+            bokehAlpha: s.bokehAlpha,
+            sessionDuration: s.elapsedTime,
           });
         }
       }

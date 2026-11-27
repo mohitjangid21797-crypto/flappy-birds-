@@ -101,6 +101,7 @@ class _FlappyGameScreenState extends State<FlappyGameScreen>
   double? _trailEmitAccumVal;
   double get _trailEmitAccum => _trailEmitAccumVal ?? 0.0;
   set _trailEmitAccum(double value) => _trailEmitAccumVal = value;
+  double _bokehAlpha = 0.0;
 
   @override
   void initState() {
@@ -171,6 +172,8 @@ class _FlappyGameScreenState extends State<FlappyGameScreen>
     if (_phase == GamePhase.paused) return;
 
     _elapsedTime += dt;
+    final double targetBokeh = _phase == GamePhase.playing ? 1.0 : 0.0;
+    _bokehAlpha += (targetBokeh - _bokehAlpha) * math.min(1.0, dt * 2.6);
 
     if (_invulnTimer > 0) {
       _invulnTimer = math.max(0.0, _invulnTimer - dt);
@@ -815,6 +818,7 @@ class _FlappyGameScreenState extends State<FlappyGameScreen>
       _birdAngle = 0.0;
       _birdY = _groundTop * 0.40;
       _trailEmitAccum = 0.0;
+      _bokehAlpha = 0.0;
       _flashAlpha = 0.0;
       _shakeTimer = 0.0;
     });
@@ -917,6 +921,8 @@ class _FlappyGameScreenState extends State<FlappyGameScreen>
                       feedbacks: _feedbacks,
                       flashAlpha: _flashAlpha,
                       shakeOffset: _shakeOffset,
+                      bokehAlpha: _bokehAlpha,
+                      sessionDuration: _elapsedTime,
                     ),
                   ),
                 ),

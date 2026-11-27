@@ -11,6 +11,9 @@ import {
   SkinPalette,
   SkyCloud,
 } from './types';
+import { Starfield } from './starfield';
+
+const skyStarfield = new Starfield();
 
 export interface SceneRenderState {
   width: number;
@@ -33,6 +36,8 @@ export interface SceneRenderState {
   flashAlpha: number;
   shakeX: number;
   shakeY: number;
+  bokehAlpha?: number;
+  sessionDuration?: number;
 }
 
 export function renderFlappyScene(
@@ -45,11 +50,28 @@ export function renderFlappyScene(
   }
 
   const groundTop = s.height - PHYSICS.groundHeight;
+  const nightProgress = computeNightProgress(s.sessionDuration ?? s.elapsedTime);
 
-  drawDaySkyAndSun(ctx, s.width, groundTop, s.elapsedTime);
-  drawClouds(ctx, s.clouds);
+  drawDaySkyAndSun(ctx, s.width, groundTop, s.elapsedTime, nightProgress);
+  skyStarfield.render(
+    ctx,
+    s.width,
+    groundTop,
+    s.elapsedTime,
+    s.worldScroll,
+    0.22 + 0.78 * nightProgress
+  );
+  drawClouds(ctx, s.clouds, nightProgress);
   drawGroupSkyBrand(ctx, s.width, groundTop, s.elapsedTime, s.worldScroll);
-  drawPastelHills(ctx, s.width, groundTop, s.worldScroll);
+  drawSkyBokehAndSparkles(
+    ctx,
+    s.width,
+    groundTop,
+    s.elapsedTime,
+    s.worldScroll,
+    s.bokehAlpha ?? 0
+  );
+  drawPastelHills(ctx, s.width, groundTop, s.worldScroll, nightProgress);
   drawPipes3D(ctx, s.pipes, groundTop, s.elapsedTime);
   drawHearts3D(ctx, s.hearts, s.elapsedTime);
   drawGroundTiles(ctx, s.width, groundTop, s.worldScroll);
@@ -84,64 +106,228 @@ export function renderFlappyScene(
   ctx.restore();
 }
 
+function lerpHexColor(hexA: string, hexB: string, t: number): string {
+  const k = Math.max(0, Math.min(1, t));
+  const a = parseInt(hexA.slice(1), 16);
+  const b = parseInt(hexB.slice(1), 16);
+  const ar = (a >> 16) & 0xff;
+  const ag = (a >> 8) & 0xff;
+  const ab = a & 0xff;
+  const br = (b >> 16) & 0xff;
+  const bg = (b >> 8) & 0xff;
+  const bb = b & 0xff;
+  const r = Math.round(ar + (br - ar) * k);
+  const g = Math.round(ag + (bg - ag) * k);
+  const bl = Math.round(ab + (bb - ab) * k);
+  return `rgb(${r}, ${g}, ${bl})`;
+}
+
+function lerpThreeStageColor(
+  dayHex: string,
+  duskHex: string,
+  nightHex: string,
+  t: number
+): string {
+  if (t <= 0.45) {
+    return lerpHexColor(dayHex, duskHex, t / 0.45);
+  }
+  return lerpHexColor(duskHex, nightHex, (t - 0.45) / 0.55);
+}
+
+function computeNightProgress(sessionDuration: number): number {
+  const raw = Math.max(0, Math.min(1, sessionDuration / 60));
+  return raw * raw * (3 - 2 * raw);
+}
+
 function drawDaySkyAndSun(
   ctx: CanvasRenderingContext2D,
   width: number,
   groundTop: number,
-  elapsedTime: number
+  elapsedTime: number,
+  nightProgress: number
 ): void {
   const skyGrad = ctx.createLinearGradient(0, 0, 0, groundTop);
-  skyGrad.addColorStop(0, '#56C8FA');
-  skyGrad.addColorStop(0.55, '#9EE3FD');
-  skyGrad.addColorStop(1, '#E5F8FF');
+  skyGrad.addColorStop(
+    0,
+    lerpThreeStageColor('#56C8FA', '#304C9E', '#0D1137', nightProgress)
+  );
+  skyGrad.addColorStop(
+    0.38,
+    lerpThreeStageColor('#86DAFC', '#4C4B9E', '#1E1B4B', nightProgress)
+  );
+  skyGrad.addColorStop(
+    0.72,
+    lerpThreeStageColor('#BCEDFF', '#7A4FA3', '#331859', nightProgress)
+  );
+  skyGrad.addColorStop(
+    1,
+    lerpThreeStageColor('#E5F8FF', '#B97FC9', '#4C1D6E', nightProgress)
+  );
   ctx.fillStyle = skyGrad;
   ctx.fillRect(0, 0, width, groundTop);
 
-  const sunX = width * 0.14;
-  const sunY = 78;
-
   ctx.save();
-  ctx.translate(sunX, sunY);
-  ctx.rotate(elapsedTime * 0.14);
-  ctx.fillStyle = 'rgba(255, 231, 97, 0.18)';
-  for (let i = 0; i < 8; i++) {
+  ctx.beginPath();
+  ctx.rect(0, 0, width, groundTop);
+  ctx.clip();
+
+  // Sun sets smoothly down toward the horizon as night begins
+  const sunAlpha = Math.max(0, Math.min(1, 1 - nightProgress / 0.52));
+  if (sunAlpha > 0.01) {
+    const sunX = width * 0.14;
+    const sunY = 78 + (1 - sunAlpha) * 150;
+
     ctx.save();
-    ctx.rotate((Math.PI / 4) * i);
+    ctx.globalAlpha = sunAlpha;
+
+    ctx.save();
+    ctx.translate(sunX, sunY);
+    ctx.rotate(elapsedTime * 0.14);
+    ctx.fillStyle = 'rgba(255, 231, 97, 0.18)';
+    for (let i = 0; i < 8; i++) {
+      ctx.save();
+      ctx.rotate((Math.PI / 4) * i);
+      ctx.beginPath();
+      ctx.moveTo(-10, 0);
+      ctx.lineTo(-24, -145);
+      ctx.lineTo(24, -145);
+      ctx.lineTo(10, 0);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+    ctx.restore();
+
+    const pulse = 1 + 0.06 * Math.sin(elapsedTime * 2.2);
+    ctx.fillStyle = 'rgba(255, 231, 97, 0.30)';
     ctx.beginPath();
-    ctx.moveTo(-10, 0);
-    ctx.lineTo(-24, -145);
-    ctx.lineTo(24, -145);
-    ctx.lineTo(10, 0);
-    ctx.closePath();
+    ctx.arc(sunX, sunY, 48 * pulse, 0, Math.PI * 2);
+    ctx.fill();
+
+    const sunCore = ctx.createRadialGradient(
+      sunX - 8,
+      sunY - 8,
+      2,
+      sunX,
+      sunY,
+      28
+    );
+    sunCore.addColorStop(0, '#FFFFFF');
+    sunCore.addColorStop(0.5, '#FFF8BA');
+    sunCore.addColorStop(1, '#FFE761');
+    ctx.fillStyle = sunCore;
+    ctx.beginPath();
+    ctx.arc(sunX, sunY, 28, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
   }
+
+  // Luminous crescent moon rises in place of the sun during twilight and night
+  const moonT = Math.max(0, Math.min(1, (nightProgress - 0.34) / 0.44));
+  const moonRise = moonT * moonT * (3 - 2 * moonT);
+  if (moonRise > 0.01) {
+    const moonX = width * 0.14;
+    const moonY = 78 + (1 - moonRise) * 140;
+    const R = 28;
+    const dx = 11;
+    const dy = -6;
+    const r = 23.5;
+
+    ctx.save();
+    ctx.globalAlpha = moonRise;
+
+    // Soft layered moonlight glow
+    const moonPulse = 1 + 0.05 * Math.sin(elapsedTime * 1.8);
+    const outerGlow = ctx.createRadialGradient(
+      moonX,
+      moonY,
+      R * 0.4,
+      moonX,
+      moonY,
+      58 * moonPulse
+    );
+    outerGlow.addColorStop(0, 'rgba(224, 231, 255, 0.34)');
+    outerGlow.addColorStop(0.55, 'rgba(167, 139, 250, 0.14)');
+    outerGlow.addColorStop(1, 'rgba(167, 139, 250, 0)');
+    ctx.fillStyle = outerGlow;
+    ctx.beginPath();
+    ctx.arc(moonX, moonY, 58 * moonPulse, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Subtle shadowed side of the moon sphere for 3D depth
+    ctx.fillStyle = 'rgba(49, 46, 129, 0.34)';
+    ctx.beginPath();
+    ctx.arc(moonX, moonY, R - 0.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Exact geometric crescent path (Circle(0,0,R) minus Circle(dx,dy,r))
+    const d = Math.hypot(dx, dy);
+    const theta = Math.atan2(dy, dx);
+    const a1 = Math.acos((R * R + d * d - r * r) / (2 * R * d));
+    const ang1 = theta + a1;
+    const ang2 = theta - a1;
+    const b1 = Math.atan2(R * Math.sin(ang1) - dy, R * Math.cos(ang1) - dx);
+    const b2 = Math.atan2(R * Math.sin(ang2) - dy, R * Math.cos(ang2) - dx);
+
+    const crescentPath = new Path2D();
+    crescentPath.arc(moonX, moonY, R, ang1, ang2, false);
+    crescentPath.arc(moonX + dx, moonY + dy, r, b2, b1, true);
+    crescentPath.closePath();
+
+    const moonGrad = ctx.createRadialGradient(
+      moonX - 10,
+      moonY - 8,
+      2,
+      moonX - 4,
+      moonY,
+      R * 1.15
+    );
+    moonGrad.addColorStop(0, '#FFFFFF');
+    moonGrad.addColorStop(0.6, '#EEF2FF');
+    moonGrad.addColorStop(1, '#C7D2FE');
+    ctx.fillStyle = moonGrad;
+    ctx.fill(crescentPath);
+
+    // Delicate lunar craters clipped inside the bright crescent
+    ctx.save();
+    ctx.clip(crescentPath);
+    ctx.fillStyle = 'rgba(129, 140, 248, 0.24)';
+    const craters: Array<[number, number, number]> = [
+      [-16, -4, 4.2],
+      [-11, 12, 3.0],
+      [-21, 8, 2.1],
+    ];
+    for (const [cx, cy, cr] of craters) {
+      ctx.beginPath();
+      ctx.arc(moonX + cx, moonY + cy, cr, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+
+    ctx.restore();
+  }
+
   ctx.restore();
-
-  const pulse = 1 + 0.06 * Math.sin(elapsedTime * 2.2);
-  ctx.fillStyle = 'rgba(255, 231, 97, 0.30)';
-  ctx.beginPath();
-  ctx.arc(sunX, sunY, 48 * pulse, 0, Math.PI * 2);
-  ctx.fill();
-
-  const sunCore = ctx.createRadialGradient(
-    sunX - 8,
-    sunY - 8,
-    2,
-    sunX,
-    sunY,
-    28
-  );
-  sunCore.addColorStop(0, '#FFFFFF');
-  sunCore.addColorStop(0.5, '#FFF8BA');
-  sunCore.addColorStop(1, '#FFE761');
-  ctx.fillStyle = sunCore;
-  ctx.beginPath();
-  ctx.arc(sunX, sunY, 28, 0, Math.PI * 2);
-  ctx.fill();
 }
 
-function drawClouds(ctx: CanvasRenderingContext2D, clouds: SkyCloud[]): void {
+function drawClouds(
+  ctx: CanvasRenderingContext2D,
+  clouds: SkyCloud[],
+  nightProgress: number
+): void {
+  const haloColor = lerpThreeStageColor(
+    '#B8E6FA',
+    '#796EB8',
+    '#3B3478',
+    nightProgress
+  );
+  const fillColor = lerpThreeStageColor(
+    '#FFFFFF',
+    '#E5E0FA',
+    '#C9C8F0',
+    nightProgress
+  );
+
   for (const c of clouds) {
     ctx.save();
     ctx.translate(c.x, c.y);
@@ -155,7 +341,7 @@ function drawClouds(ctx: CanvasRenderingContext2D, clouds: SkyCloud[]): void {
       [76, 16, 18],
     ];
 
-    ctx.fillStyle = '#B8E6FA';
+    ctx.fillStyle = haloColor;
     for (const [px, py, pr] of puffs) {
       ctx.beginPath();
       ctx.arc(px, py, pr + 8, 0, Math.PI * 2);
@@ -164,7 +350,7 @@ function drawClouds(ctx: CanvasRenderingContext2D, clouds: SkyCloud[]): void {
     drawRoundedRect(ctx, -88, 12, 190, 26, 13);
     ctx.fill();
 
-    ctx.fillStyle = '#FFFFFF';
+    ctx.fillStyle = fillColor;
     for (const [px, py, pr] of puffs) {
       ctx.beginPath();
       ctx.arc(px, py, pr, 0, Math.PI * 2);
@@ -322,13 +508,132 @@ function drawGroupSkyBrand(
   ctx.restore();
 }
 
+const BOKEH_MOTE_COUNT = 12;
+const SPARKLE_MOTE_COUNT = 10;
+
+function drawSkyBokehAndSparkles(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  groundTop: number,
+  elapsedTime: number,
+  worldScroll: number,
+  intensity: number
+): void {
+  if (intensity <= 0.005 || groundTop <= 60) return;
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, 0, width, groundTop);
+  ctx.clip();
+
+  const span = width + 110;
+  const usableHeight = Math.max(80, groundTop - 36);
+
+  // Soft sunlit bokeh discs drifting slowly in the upper-mid sky
+  for (let i = 0; i < BOKEH_MOTE_COUNT; i++) {
+    const seedA = (i * 0.6180339887) % 1;
+    const seedB = ((i * 0.3819660113) + 0.17) % 1;
+    const radius = 10 + (i % 4) * 5.2 + seedB * 3.0;
+    const driftSpeed = 6.5 + (i % 5) * 2.1;
+    const rawX = seedA * span - (elapsedTime * driftSpeed + worldScroll * 0.048);
+    const x = (((rawX % span) + span) % span) - 55;
+    const baseY = 26 + seedB * (usableHeight * 0.82);
+    const y = baseY + Math.sin(elapsedTime * (0.38 + (i % 3) * 0.12) + i * 1.37) * 14;
+    const breathe = 0.68 + 0.32 * Math.sin(elapsedTime * 1.15 + i * 2.1);
+    const alpha = intensity * breathe * (i % 3 === 0 ? 0.22 : 0.16);
+
+    const grad = ctx.createRadialGradient(x, y, 0, x, y, radius);
+    if (i % 3 === 0) {
+      grad.addColorStop(0, `rgba(255, 250, 214, ${(alpha * 1.15).toFixed(3)})`);
+      grad.addColorStop(0.65, `rgba(255, 244, 178, ${(alpha * 0.55).toFixed(3)})`);
+      grad.addColorStop(1, 'rgba(255, 244, 178, 0)');
+    } else {
+      grad.addColorStop(0, `rgba(255, 255, 255, ${(alpha * 1.2).toFixed(3)})`);
+      grad.addColorStop(0.68, `rgba(224, 247, 255, ${(alpha * 0.52).toFixed(3)})`);
+      grad.addColorStop(1, 'rgba(224, 247, 255, 0)');
+    }
+
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.fill();
+
+    if (radius >= 16) {
+      ctx.strokeStyle = `rgba(255, 255, 255, ${(alpha * 0.42).toFixed(3)})`;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(x, y, radius * 0.86, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  }
+
+  // Delicate 4-point sky sparkles with soft twinkle pulse
+  for (let i = 0; i < SPARKLE_MOTE_COUNT; i++) {
+    const seedA = ((i * 0.7548776662) + 0.31) % 1;
+    const seedB = ((i * 0.569840291) + 0.09) % 1;
+    const driftSpeed = 9.0 + (i % 4) * 2.6;
+    const rawX = seedA * span - (elapsedTime * driftSpeed + worldScroll * 0.072);
+    const x = (((rawX % span) + span) % span) - 55;
+    const baseY = 22 + seedB * (usableHeight * 0.78);
+    const y = baseY + Math.cos(elapsedTime * (0.55 + (i % 3) * 0.14) + i * 1.9) * 10;
+
+    const pulseRaw = 0.5 + 0.5 * Math.sin(elapsedTime * (1.8 + (i % 3) * 0.5) + i * 2.4);
+    const twinkle = pulseRaw * pulseRaw;
+    const alpha = intensity * (0.12 + twinkle * 0.42);
+    const arm = (3.4 + (i % 3) * 1.45) * (0.78 + twinkle * 0.34);
+
+    // Subtle soft glow behind sparkle
+    const glow = ctx.createRadialGradient(x, y, 0, x, y, arm * 1.9);
+    glow.addColorStop(0, `rgba(255, 255, 255, ${(alpha * 0.55).toFixed(3)})`);
+    glow.addColorStop(1, 'rgba(255, 255, 255, 0)');
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(x, y, arm * 1.9, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(elapsedTime * 0.25 + i * 0.4);
+    ctx.fillStyle =
+      i % 2 === 0
+        ? `rgba(255, 255, 255, ${alpha.toFixed(3)})`
+        : `rgba(255, 246, 189, ${alpha.toFixed(3)})`;
+
+    const inner = arm * 0.26;
+    ctx.beginPath();
+    ctx.moveTo(0, -arm);
+    ctx.quadraticCurveTo(inner * 0.65, -inner * 0.65, arm, 0);
+    ctx.quadraticCurveTo(inner * 0.65, inner * 0.65, 0, arm);
+    ctx.quadraticCurveTo(-inner * 0.65, inner * 0.65, -arm, 0);
+    ctx.quadraticCurveTo(-inner * 0.65, -inner * 0.65, 0, -arm);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  ctx.restore();
+}
+
 function drawPastelHills(
   ctx: CanvasRenderingContext2D,
   width: number,
   groundTop: number,
-  worldScroll: number
+  worldScroll: number,
+  nightProgress: number
 ): void {
-  drawHillWave(ctx, width, groundTop, 152, 52, 480, worldScroll * 0.16, '#FADDE6');
+  const backColor = lerpThreeStageColor(
+    '#FADDE6',
+    '#8A639E',
+    '#3B215C',
+    nightProgress
+  );
+  const frontColor = lerpThreeStageColor(
+    '#F5C3D3',
+    '#6B4387',
+    '#291347',
+    nightProgress
+  );
+  drawHillWave(ctx, width, groundTop, 152, 52, 480, worldScroll * 0.16, backColor);
   drawHillWave(
     ctx,
     width,
@@ -337,7 +642,7 @@ function drawPastelHills(
     34,
     390,
     worldScroll * 0.28 + 140,
-    '#F5C3D3'
+    frontColor
   );
 }
 

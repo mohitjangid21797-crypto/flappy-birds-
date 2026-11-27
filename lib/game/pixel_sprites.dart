@@ -4,6 +4,7 @@ import 'package:material_ui/material_ui.dart';
 
 import 'game_config.dart';
 import 'game_state.dart';
+import 'starfield.dart';
 
 class FlappyScenePainter extends CustomPainter {
   FlappyScenePainter({
@@ -24,6 +25,8 @@ class FlappyScenePainter extends CustomPainter {
     required this.feedbacks,
     required this.flashAlpha,
     required this.shakeOffset,
+    this.bokehAlpha = 0.0,
+    this.sessionDuration = 0.0,
   });
 
   final double elapsedTime;
@@ -43,6 +46,23 @@ class FlappyScenePainter extends CustomPainter {
   final List<FloatingFeedback> feedbacks;
   final double flashAlpha;
   final Offset shakeOffset;
+  final double bokehAlpha;
+  final double sessionDuration;
+
+  static final Starfield _starfield = Starfield();
+
+  double get _nightProgress {
+    final double raw = (sessionDuration / 60.0).clamp(0.0, 1.0);
+    return raw * raw * (3.0 - 2.0 * raw);
+  }
+
+  static Color _lerpThreeStage(Color day, Color dusk, Color night, double t) {
+    if (t <= 0.45) {
+      return Color.lerp(day, dusk, (t / 0.45).clamp(0.0, 1.0)) ?? day;
+    }
+    return Color.lerp(dusk, night, ((t - 0.45) / 0.55).clamp(0.0, 1.0)) ??
+        night;
+  }
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -52,11 +72,21 @@ class FlappyScenePainter extends CustomPainter {
     }
 
     final double groundTop = size.height - GamePhysics.groundHeight;
+    final double nightProgress = _nightProgress;
 
-    _drawDaySkyAndSun(canvas, size, groundTop);
-    _drawClouds(canvas);
+    _drawDaySkyAndSun(canvas, size, groundTop, nightProgress);
+    _starfield.paint(
+      canvas,
+      size,
+      groundTop,
+      elapsedTime,
+      worldScroll,
+      intensity: 0.22 + 0.78 * nightProgress,
+    );
+    _drawClouds(canvas, nightProgress);
     _drawGroupSkyWatermark(canvas, size, groundTop);
-    _drawPastelHills(canvas, size, groundTop);
+    _drawSkyBokehAndSparkles(canvas, size, groundTop);
+    _drawPastelHills(canvas, size, groundTop, nightProgress);
     _drawPipes3D(canvas, groundTop);
     _drawHearts3D(canvas);
     _drawGroundTiles(canvas, size, groundTop);
@@ -73,71 +103,209 @@ class FlappyScenePainter extends CustomPainter {
     canvas.restore();
   }
 
-  void _drawDaySkyAndSun(Canvas canvas, Size size, double groundTop) {
+  void _drawDaySkyAndSun(
+    Canvas canvas,
+    Size size,
+    double groundTop,
+    double nightProgress,
+  ) {
     final Rect skyRect = Rect.fromLTWH(0, 0, size.width, groundTop);
     final Paint skyPaint = Paint()
-      ..shader = const LinearGradient(
+      ..shader = LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
         colors: [
-          GameColors.skyTop,
-          GameColors.skyMid,
-          GameColors.skyHorizon,
+          _lerpThreeStage(
+            const Color(0xFF56C8FA),
+            const Color(0xFF304C9E),
+            const Color(0xFF0D1137),
+            nightProgress,
+          ),
+          _lerpThreeStage(
+            const Color(0xFF86DAFC),
+            const Color(0xFF4C4B9E),
+            const Color(0xFF1E1B4B),
+            nightProgress,
+          ),
+          _lerpThreeStage(
+            const Color(0xFFBCEDFF),
+            const Color(0xFF7A4FA3),
+            const Color(0xFF331859),
+            nightProgress,
+          ),
+          _lerpThreeStage(
+            const Color(0xFFE5F8FF),
+            const Color(0xFFB97FC9),
+            const Color(0xFF4C1D6E),
+            nightProgress,
+          ),
         ],
-        stops: [0.0, 0.55, 1.0],
+        stops: const [0.0, 0.38, 0.72, 1.0],
       ).createShader(skyRect);
     canvas.drawRect(skyRect, skyPaint);
 
-    final Offset sunCenter = Offset(size.width * 0.14, 78);
     canvas.save();
-    canvas.translate(sunCenter.dx, sunCenter.dy);
-    canvas.rotate(elapsedTime * 0.14);
-    final Paint rayPaint = Paint()
-      ..color = GameColors.sunGlow.withValues(alpha: 0.18);
-    for (int i = 0; i < 8; i++) {
+    canvas.clipRect(skyRect);
+
+    // Sun sets smoothly down toward the horizon as night begins
+    final double sunAlpha = (1.0 - nightProgress / 0.52).clamp(0.0, 1.0);
+    if (sunAlpha > 0.01) {
+      final Offset sunCenter =
+          Offset(size.width * 0.14, 78.0 + (1.0 - sunAlpha) * 150.0);
+
       canvas.save();
-      canvas.rotate((math.pi / 4) * i);
-      final Path ray = Path()
-        ..moveTo(-10, 0)
-        ..lineTo(-24, -145)
-        ..lineTo(24, -145)
-        ..lineTo(10, 0)
-        ..close();
-      canvas.drawPath(ray, rayPaint);
+      canvas.translate(sunCenter.dx, sunCenter.dy);
+      canvas.rotate(elapsedTime * 0.14);
+      final Paint rayPaint = Paint()
+        ..color = GameColors.sunGlow.withValues(alpha: 0.18 * sunAlpha);
+      for (int i = 0; i < 8; i++) {
+        canvas.save();
+        canvas.rotate((math.pi / 4) * i);
+        final Path ray = Path()
+          ..moveTo(-10, 0)
+          ..lineTo(-24, -145)
+          ..lineTo(24, -145)
+          ..lineTo(10, 0)
+          ..close();
+        canvas.drawPath(ray, rayPaint);
+        canvas.restore();
+      }
+      canvas.restore();
+
+      final double pulse = 1.0 + 0.06 * math.sin(elapsedTime * 2.2);
+      canvas.drawCircle(
+        sunCenter,
+        48 * pulse,
+        Paint()
+          ..color = GameColors.sunGlow.withValues(alpha: 0.30 * sunAlpha),
+      );
+      canvas.drawCircle(
+        sunCenter,
+        28,
+        Paint()
+          ..shader = RadialGradient(
+            center: const Alignment(-0.3, -0.3),
+            colors: [
+              Colors.white.withValues(alpha: sunAlpha),
+              GameColors.sunCore.withValues(alpha: sunAlpha),
+              GameColors.sunGlow.withValues(alpha: sunAlpha),
+            ],
+          ).createShader(Rect.fromCircle(center: sunCenter, radius: 28)),
+      );
+    }
+
+    // Luminous crescent moon rises in place of the sun during twilight and night
+    final double moonT = ((nightProgress - 0.34) / 0.44).clamp(0.0, 1.0);
+    final double moonRise = moonT * moonT * (3.0 - 2.0 * moonT);
+    if (moonRise > 0.01) {
+      final Offset moonCenter =
+          Offset(size.width * 0.14, 78.0 + (1.0 - moonRise) * 140.0);
+      const double radius = 28.0;
+      const Offset cutOffset = Offset(11.0, -6.0);
+      const double cutRadius = 23.5;
+
+      final double moonPulse = 1.0 + 0.05 * math.sin(elapsedTime * 1.8);
+      final Rect glowRect =
+          Rect.fromCircle(center: moonCenter, radius: 58.0 * moonPulse);
+      canvas.drawCircle(
+        moonCenter,
+        58.0 * moonPulse,
+        Paint()
+          ..shader = RadialGradient(
+            colors: [
+              const Color(0xFFE0E7FF).withValues(alpha: 0.34 * moonRise),
+              const Color(0xFFA78BFA).withValues(alpha: 0.14 * moonRise),
+              const Color(0x00A78BFA),
+            ],
+            stops: const [0.0, 0.55, 1.0],
+          ).createShader(glowRect),
+      );
+
+      // Subtle shadowed side of the moon sphere for 3D depth
+      canvas.drawCircle(
+        moonCenter,
+        radius - 0.5,
+        Paint()
+          ..color = const Color(0xFF312E81).withValues(alpha: 0.34 * moonRise),
+      );
+
+      final Path fullMoon = Path()
+        ..addOval(Rect.fromCircle(center: moonCenter, radius: radius));
+      final Path shadowCut = Path()
+        ..addOval(
+          Rect.fromCircle(center: moonCenter + cutOffset, radius: cutRadius),
+        );
+      final Path crescentPath =
+          Path.combine(PathOperation.difference, fullMoon, shadowCut);
+
+      canvas.drawPath(
+        crescentPath,
+        Paint()
+          ..shader = RadialGradient(
+            center: const Alignment(-0.35, -0.3),
+            colors: [
+              Colors.white.withValues(alpha: moonRise),
+              const Color(0xFFEEF2FF).withValues(alpha: moonRise),
+              const Color(0xFFC7D2FE).withValues(alpha: moonRise),
+            ],
+            stops: const [0.0, 0.6, 1.0],
+          ).createShader(Rect.fromCircle(center: moonCenter, radius: radius)),
+      );
+
+      // Delicate lunar craters clipped inside the bright crescent
+      canvas.save();
+      canvas.clipPath(crescentPath);
+      final Paint craterPaint = Paint()
+        ..color = const Color(0xFF818CF8).withValues(alpha: 0.24 * moonRise);
+      canvas.drawCircle(moonCenter + const Offset(-16, -4), 4.2, craterPaint);
+      canvas.drawCircle(moonCenter + const Offset(-11, 12), 3.0, craterPaint);
+      canvas.drawCircle(moonCenter + const Offset(-21, 8), 2.1, craterPaint);
       canvas.restore();
     }
-    canvas.restore();
 
-    final double pulse = 1.0 + 0.06 * math.sin(elapsedTime * 2.2);
-    canvas.drawCircle(
-      sunCenter,
-      48 * pulse,
-      Paint()..color = GameColors.sunGlow.withValues(alpha: 0.30),
-    );
-    canvas.drawCircle(
-      sunCenter,
-      28,
-      Paint()
-        ..shader = const RadialGradient(
-          center: Alignment(-0.3, -0.3),
-          colors: [Colors.white, GameColors.sunCore, GameColors.sunGlow],
-        ).createShader(Rect.fromCircle(center: sunCenter, radius: 28)),
-    );
+    canvas.restore();
   }
 
-  void _drawClouds(Canvas canvas) {
+  void _drawClouds(Canvas canvas, double nightProgress) {
+    final Color haloColor = _lerpThreeStage(
+      GameColors.cloudHalo,
+      const Color(0xFF796EB8),
+      const Color(0xFF3B3478),
+      nightProgress,
+    );
+    final Color fillColor = _lerpThreeStage(
+      GameColors.cloudFill,
+      const Color(0xFFE5E0FA),
+      const Color(0xFFC9C8F0),
+      nightProgress,
+    );
+
     for (final SkyCloud cloud in clouds) {
-      _drawSingleCloud(canvas, cloud.x, cloud.y, cloud.scale);
+      _drawSingleCloud(
+        canvas,
+        cloud.x,
+        cloud.y,
+        cloud.scale,
+        haloColor,
+        fillColor,
+      );
     }
   }
 
-  void _drawSingleCloud(Canvas canvas, double x, double y, double scale) {
+  void _drawSingleCloud(
+    Canvas canvas,
+    double x,
+    double y,
+    double scale,
+    Color haloColor,
+    Color fillColor,
+  ) {
     canvas.save();
     canvas.translate(x, y);
     canvas.scale(scale);
 
-    final Paint haloPaint = Paint()..color = GameColors.cloudHalo;
-    final Paint fillPaint = Paint()..color = GameColors.cloudFill;
+    final Paint haloPaint = Paint()..color = haloColor;
+    final Paint fillPaint = Paint()..color = fillColor;
 
     const List<List<double>> puffs = [
       [-62, 16, 20],
@@ -363,7 +531,137 @@ class FlappyScenePainter extends CustomPainter {
     canvas.restore();
   }
 
-  void _drawPastelHills(Canvas canvas, Size size, double groundTop) {
+  void _drawSkyBokehAndSparkles(Canvas canvas, Size size, double groundTop) {
+    if (bokehAlpha <= 0.005 || groundTop <= 60.0) return;
+
+    canvas.save();
+    canvas.clipRect(Rect.fromLTWH(0, 0, size.width, groundTop));
+
+    final double span = size.width + 110.0;
+    final double usableHeight = math.max(80.0, groundTop - 36.0);
+
+    // 12 soft sunlit bokeh orbs drifting slowly in the background sky
+    for (int i = 0; i < 12; i++) {
+      final double seedA = (i * 0.6180339887) % 1.0;
+      final double seedB = ((i * 0.3819660113) + 0.17) % 1.0;
+      final double radius = 10.0 + (i % 4) * 5.2 + seedB * 3.0;
+      final double driftSpeed = 6.5 + (i % 5) * 2.1;
+      final double rawX =
+          seedA * span - (elapsedTime * driftSpeed + worldScroll * 0.048);
+      final double x = (((rawX % span) + span) % span) - 55.0;
+      final double baseY = 26.0 + seedB * (usableHeight * 0.82);
+      final double y = baseY +
+          math.sin(elapsedTime * (0.38 + (i % 3) * 0.12) + i * 1.37) * 14.0;
+      final double breathe =
+          0.68 + 0.32 * math.sin(elapsedTime * 1.15 + i * 2.1);
+      final double alpha = bokehAlpha * breathe * (i % 3 == 0 ? 0.22 : 0.16);
+
+      final Rect orbRect = Rect.fromCircle(center: Offset(x, y), radius: radius);
+      final List<Color> colors = i % 3 == 0
+          ? [
+              const Color(0xFFFFFAD6).withValues(alpha: (alpha * 1.15).clamp(0.0, 1.0)),
+              const Color(0xFFFFF4B2).withValues(alpha: (alpha * 0.55).clamp(0.0, 1.0)),
+              const Color(0x00FFF4B2),
+            ]
+          : [
+              Colors.white.withValues(alpha: (alpha * 1.2).clamp(0.0, 1.0)),
+              const Color(0xFFE0F7FF).withValues(alpha: (alpha * 0.52).clamp(0.0, 1.0)),
+              const Color(0x00E0F7FF),
+            ];
+
+      final Paint orbPaint = Paint()
+        ..shader = RadialGradient(
+          colors: colors,
+          stops: const [0.0, 0.65, 1.0],
+        ).createShader(orbRect);
+      canvas.drawCircle(Offset(x, y), radius, orbPaint);
+
+      if (radius >= 16.0) {
+        canvas.drawCircle(
+          Offset(x, y),
+          radius * 0.86,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1.0
+            ..color = Colors.white.withValues(alpha: (alpha * 0.42).clamp(0.0, 1.0)),
+        );
+      }
+    }
+
+    // 10 delicate 4-point star sparkles twinkling slowly across the sky
+    for (int i = 0; i < 10; i++) {
+      final double seedA = ((i * 0.7548776662) + 0.31) % 1.0;
+      final double seedB = ((i * 0.569840291) + 0.09) % 1.0;
+      final double driftSpeed = 9.0 + (i % 4) * 2.6;
+      final double rawX =
+          seedA * span - (elapsedTime * driftSpeed + worldScroll * 0.072);
+      final double x = (((rawX % span) + span) % span) - 55.0;
+      final double baseY = 22.0 + seedB * (usableHeight * 0.78);
+      final double y = baseY +
+          math.cos(elapsedTime * (0.55 + (i % 3) * 0.14) + i * 1.9) * 10.0;
+
+      final double pulseRaw =
+          0.5 + 0.5 * math.sin(elapsedTime * (1.8 + (i % 3) * 0.5) + i * 2.4);
+      final double twinkle = pulseRaw * pulseRaw;
+      final double alpha = bokehAlpha * (0.12 + twinkle * 0.42);
+      final double arm = (3.4 + (i % 3) * 1.45) * (0.78 + twinkle * 0.34);
+
+      final Rect glowRect =
+          Rect.fromCircle(center: Offset(x, y), radius: arm * 1.9);
+      canvas.drawCircle(
+        Offset(x, y),
+        arm * 1.9,
+        Paint()
+          ..shader = RadialGradient(
+            colors: [
+              Colors.white.withValues(alpha: (alpha * 0.55).clamp(0.0, 1.0)),
+              const Color(0x00FFFFFF),
+            ],
+          ).createShader(glowRect),
+      );
+
+      canvas.save();
+      canvas.translate(x, y);
+      canvas.rotate(elapsedTime * 0.25 + i * 0.4);
+      final double inner = arm * 0.26 * 0.65;
+      final Path star = Path()
+        ..moveTo(0, -arm)
+        ..quadraticBezierTo(inner, -inner, arm, 0)
+        ..quadraticBezierTo(inner, inner, 0, arm)
+        ..quadraticBezierTo(-inner, inner, -arm, 0)
+        ..quadraticBezierTo(-inner, -inner, 0, -arm)
+        ..close();
+
+      final Color starColor = i.isEven ? Colors.white : const Color(0xFFFFF6BD);
+      canvas.drawPath(
+        star,
+        Paint()..color = starColor.withValues(alpha: alpha.clamp(0.0, 1.0)),
+      );
+      canvas.restore();
+    }
+
+    canvas.restore();
+  }
+
+  void _drawPastelHills(
+    Canvas canvas,
+    Size size,
+    double groundTop,
+    double nightProgress,
+  ) {
+    final Color backColor = _lerpThreeStage(
+      GameColors.hillBack,
+      const Color(0xFF8A639E),
+      const Color(0xFF3B215C),
+      nightProgress,
+    );
+    final Color frontColor = _lerpThreeStage(
+      GameColors.hillFront,
+      const Color(0xFF6B4387),
+      const Color(0xFF291347),
+      nightProgress,
+    );
+
     _drawHillWave(
       canvas: canvas,
       width: size.width,
@@ -372,7 +670,7 @@ class FlappyScenePainter extends CustomPainter {
       amplitude: 52,
       wavelength: 480,
       scroll: worldScroll * 0.16,
-      color: GameColors.hillBack,
+      color: backColor,
     );
 
     _drawHillWave(
@@ -383,7 +681,7 @@ class FlappyScenePainter extends CustomPainter {
       amplitude: 34,
       wavelength: 390,
       scroll: worldScroll * 0.28 + 140,
-      color: GameColors.hillFront,
+      color: frontColor,
     );
   }
 
